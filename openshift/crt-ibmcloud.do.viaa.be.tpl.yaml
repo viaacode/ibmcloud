@@ -1,0 +1,30 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: crt-ibmcloud.do.viaa.be.tpl
+  annotations:
+    description: >-
+      use this template to create a secret containing a wildcard SSL certificate.
+      This certficate is used by meemoo's ingress resources that provide private
+      service endpoints using IBM's default private ingress controller.
+      Create the secret in the default namespace which allows it to be used
+      by all ingress resources in all namespaces.
+objects:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: crt-ibmcloud.do.viaa.be
+    type: Opaque
+    data:
+      tls.crt: ${CRT}
+      tls.key: ${KEY}
+parameters:
+  - description: Signed certificate, followed by intermediate certs all in a single line string
+    displayName: Certificate chain
+    name: CRT
+    required: true
+  - description: Private Key
+    displayName: Key
+    name: KEY
+    required: true
+

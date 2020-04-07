@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.bluemix.net/ALB-ID: <id of the private ALB>
+  name: private-sc-events-prd
+spec:
+  rules:
+  - host: sc-events-prd-shared-components.ibmcloud.do.viaa.be
+    http:
+      paths:
+      - backend:
+          serviceName: sc-events-prd
+          servicePort: 8080
+        path: /
+  tls:
+  - hosts:
+    - sc-events-prd-shared-components.ibmcloud.do.viaa.be
+    secretName: crt-ibmcloud.do.viaa.be
