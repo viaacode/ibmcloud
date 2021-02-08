@@ -6,7 +6,7 @@ variable "location" {
   default = "eu-de"
 }
 
-variable "viaa_dc_ip" {
+variable "viaa_dc_subnet" {
   type = string
   description = "external IP address of outgoing traffic from the VIAA datacenter"
 }
@@ -71,7 +71,7 @@ resource "ibm_security_group_rule" "ipsec_dco_in" {
   port_range_min = 500
   port_range_max = 500
   protocol = "udp"
-  remote_ip = var.viaa_dc_ip
+  remote_ip = var.viaa_dc_subnet
   security_group_id = ibm_security_group.ipsec.id
 }
 
@@ -80,7 +80,7 @@ resource "ibm_security_group_rule" "ipsec_dco_out" {
   port_range_min = 500
   port_range_max = 500
   protocol = "udp"
-  remote_ip = var.viaa_dc_ip
+  remote_ip = var.viaa_dc_subnet
   security_group_id = ibm_security_group.ipsec.id
 }
 

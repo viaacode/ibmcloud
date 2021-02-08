@@ -6,5 +6,6 @@ password_db_avo2-qas_admin =
 password_db_avo2-qas_dbmaster =
 password_db_avo2_admin =
 password_db_avo2_dbmaster =
+password_db_dwhreader =
 
 dwh_sources_ip =

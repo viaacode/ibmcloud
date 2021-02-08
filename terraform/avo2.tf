@@ -3,6 +3,10 @@ variable "dwh_sources_ip" {
   description = "IP address of the deewee ETL host"
 }
 
+variable "password_db_dwhreader" {
+  type = string
+  description = "database dwhreader password"
+}
 variable "password_db_events-qas_admin" {
   type = string
   description = "database admin password"
@@ -25,6 +29,10 @@ resource "ibm_database" "events-qas" {
   users {
     name = "dbmaster"
     password = var.password_db_events-qas_dbmaster
+  }
+  users {
+    name = "dwhreader"
+    password = var.password_db_dwhreader
   }
   whitelist {
     address = var.dwh_sources_ip
