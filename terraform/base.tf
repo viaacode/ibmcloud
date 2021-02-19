@@ -41,8 +41,20 @@ variable "ipsec_vpn_psk" {
 variable "rhos_subnet" {
   description = "subnet for the rhos openshift cluster"
 }
-variable "rhos_vpn_subnet" {
+variable "vpn_subnet" {
   description = "subnet for the for the vpc vpn gateway"
+}
+variable "vpe_subnet" {
+  description = "subnet for the for the vpc virtual private endpoints"
+}
+
+resource "ibm_is_subnet" "vpe" {
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
+  resource_group = ibm_resource_group.shared.id
+  name = "vpe"
+  vpc = ibm_is_vpc.dc-ibm.id
+  zone = var.zone
+  ipv4_cidr_block = var.vpe_subnet
 }
 
 resource "ibm_is_ssh_key" "keys" {
@@ -101,7 +113,6 @@ resource "ibm_security_group_rule" "openvpn_out" {
   protocol = "udp"
   security_group_id = ibm_security_group.ipsec.id
 }
-
 resource "ibm_security_group_rule" "ipsec_dco_in" {
   direction = "ingress"
   port_range_min = 500
@@ -154,31 +165,32 @@ resource "ibm_compute_vm_instance" "vm1" {
 #  disk_encryption = false
 #}
 
-resource "ibm_is_vpc" "rhos-vpc" {
+resource "ibm_is_vpc" "dc-ibm" {
   resource_group = ibm_resource_group.shared.id
-  name = "rhos-vpc"
+  name = "dc-ibm"
   classic_access = false
   address_prefix_management = "manual"
 }
 
-resource "ibm_is_subnet" "rhos-vpn-subnet" {
-  name = "rhos-vpn-subnet"
-  vpc = ibm_is_vpc.rhos-vpc.id
+resource "ibm_is_subnet" "vpn" {
+  name = "vpn"
+  vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
-  ipv4_cidr_block = var.rhos_vpn_subnet
+  ipv4_cidr_block = var.vpn_subnet
   resource_group = ibm_resource_group.shared.id
-  routing_table = ibm_is_vpc_routing_table.rhos-vpc-rt.routing_table
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
 }
 
-resource "ibm_is_vpn_gateway" "rhos-vpn-gateway" {
-  name   = "rhos-vpn-gateway"
-  subnet = ibm_is_subnet.rhos-vpn-subnet.id
+resource "ibm_is_vpn_gateway" "vpn-gateway" {
+  name   = "vpn-gateway"
+  subnet = ibm_is_subnet.vpn.id
   mode   = "route"
   resource_group = ibm_resource_group.shared.id
 }
-output "rhos-vpn-public-ip" {
-  description = "Public IP address of the VPN gateway for the rhos VPC"
-  value = ibm_is_vpn_gateway.rhos-vpn-gateway.public_ip_address
+
+output "vpn-public-ip" {
+  description = "Public IP address of the VPN gateway for the dc-ibm VPC"
+  value = ibm_is_vpn_gateway.vpn-gateway.public_ip_address
 }
 
 resource "ibm_is_ike_policy" "ike-meemoo-dc" {
@@ -200,26 +212,26 @@ resource "ibm_is_ipsec_policy" "ipsec-meemoo-dc" {
 
 resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dc" {
   name          = "vpn-meemoo-dc"
-  vpn_gateway   = ibm_is_vpn_gateway.rhos-vpn-gateway.id
+  vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway.id
   peer_address  = var.meemoo_vpn_peer_ip
   preshared_key = var.ipsec_vpn_psk
-  local_cidrs = [ibm_is_vpc_address_prefix.vpc-prefix.cidr]
+  local_cidrs = [ibm_is_vpc_address_prefix.dc-ibm-prefix.cidr]
   peer_cidrs = [var.meemoo_vpn_subnet]
   admin_state_up = true
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
 }
 
-resource "ibm_is_vpc_routing_table" "rhos-vpc-rt" {
-    vpc = ibm_is_vpc.rhos-vpc.id
-    name = "rhos-vpc-rt"
+resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
+    vpc = ibm_is_vpc.dc-ibm.id
+    name = "dc-ibm-rt"
 }
 
-# Creating this route does not work. Route is created manually
+# This fails: created manualy or with te api
 #resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
-#  routing_table = ibm_is_subnet.rhos-vpn-subnet.routing_table
+#  routing_table = ibm_is_subnet.vpn.routing_table
 #  name        = "route-meemoo-dc"
-#  vpc         = ibm_is_vpc.rhos-vpc.id
+#  vpc         = ibm_is_vpc.dc-ibm.id
 #  zone        = var.zone
 #  destination = var.meemoo_vpn_subnet
 #  next_hop    = ibm_is_vpn_gateway_connection.vpn-meemoo-dc.id
@@ -239,14 +251,14 @@ output "vpc-vm-public-ip" {
 resource "ibm_is_public_gateway" "rhos-public-gateway" {
     resource_group = ibm_resource_group.shared.id
     name = "rhos-public-gateway"
-    vpc = ibm_is_vpc.rhos-vpc.id
+    vpc = ibm_is_vpc.dc-ibm.id
     zone = var.zone
     #floating_ip = [ibm_is_floating_ip.public-ip.id]
 }
 
 resource "ibm_is_security_group_rule" "allow_ssh" {
   depends_on = [ibm_is_floating_ip.public-ip]
-  group      = ibm_is_vpc.rhos-vpc.default_security_group
+  group      = ibm_is_vpc.dc-ibm.default_security_group
   direction  = "inbound"
   remote     = "0.0.0.0/0"
 
@@ -256,20 +268,20 @@ resource "ibm_is_security_group_rule" "allow_ssh" {
   }
 }
 
-resource "ibm_is_subnet" "rhos-subnet" {
-  routing_table = ibm_is_vpc_routing_table.rhos-vpc-rt.routing_table
+resource "ibm_is_subnet" "rhos" {
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
   resource_group = ibm_resource_group.shared.id
-  name = "rhos-subnet"
-  vpc = ibm_is_vpc.rhos-vpc.id
+  name = "rhos"
+  vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
   public_gateway = ibm_is_public_gateway.rhos-public-gateway.id
   ipv4_cidr_block = var.rhos_subnet
 }
 
-resource "ibm_is_vpc_address_prefix" "vpc-prefix" {
-  name = "vpc-prefix"
+resource "ibm_is_vpc_address_prefix" "dc-ibm-prefix" {
+  name = "dc-ibm-prefix"
   zone = var.zone
-  vpc = ibm_is_vpc.rhos-vpc.id
+  vpc = ibm_is_vpc.dc-ibm.id
   cidr = var.ibm_vpc_address_prefix
 }
 
@@ -277,11 +289,11 @@ resource "ibm_is_instance" "vm-vpc" {
   resource_group = ibm_resource_group.shared.id
   name = "vm-vpc"
   profile = "cx2-2x4"
-  vpc = ibm_is_vpc.rhos-vpc.id
+  vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
   image = "r010-7b4a1103-c5ed-4a14-87c0-5f75b9f3c86a"
   primary_network_interface {
-        subnet = ibm_is_subnet.rhos-subnet.id
+        subnet = ibm_is_subnet.rhos.id
   }
   keys              = [for key in ibm_is_ssh_key.keys: key.id]
 }
