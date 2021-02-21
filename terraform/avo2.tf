@@ -150,7 +150,7 @@ resource "ibm_is_virtual_endpoint_gateway" "pg-avo2-qas" {
   name = "pg-avo2-qas"
   ips {
     name = "pg-avo2-qas"
-    subnet = ibm_is_subnet.vpe.id
+    subnet = ibm_is_subnet.vpe-net.id
   }
   target {
     crn          = ibm_database.avo2-qas.id

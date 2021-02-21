@@ -24,12 +24,12 @@ variable "ibm_vpc_address_prefix" {
   type = string
 }
 
-variable "meemoo_vpn_peer_ip" {
+variable "vpn_meemoo_publicip" {
   description = "public IP address of the memmoo ipsec vpn endpoint"
   type = string
 }
 
-variable "meemoo_vpn_subnet" {
+variable "vpn_meemoo_cidr" {
   description = "traffic selector for the meemoo side of the ipsec vpn"
   type = string
 }
@@ -38,23 +38,23 @@ variable "ipsec_vpn_psk" {
   description = "ike preshared key for ipsec vpn"
 }
 
-variable "rhos_subnet" {
+variable "ibm_openshift_net" {
   description = "subnet for the rhos openshift cluster"
 }
-variable "vpn_subnet" {
+variable "ibm_vpn_net" {
   description = "subnet for the for the vpc vpn gateway"
 }
-variable "vpe_subnet" {
+variable "ibm_vpe_net" {
   description = "subnet for the for the vpc virtual private endpoints"
 }
 
-resource "ibm_is_subnet" "vpe" {
+resource "ibm_is_subnet" "vpe-net" {
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
   resource_group = ibm_resource_group.shared.id
-  name = "vpe"
+  name = "vpe-net"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
-  ipv4_cidr_block = var.vpe_subnet
+  ipv4_cidr_block = var.ibm_vpe_net
 }
 
 resource "ibm_is_ssh_key" "keys" {
@@ -172,18 +172,18 @@ resource "ibm_is_vpc" "dc-ibm" {
   address_prefix_management = "manual"
 }
 
-resource "ibm_is_subnet" "vpn" {
-  name = "vpn"
+resource "ibm_is_subnet" "vpn-net" {
+  name = "vpn-net"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
-  ipv4_cidr_block = var.vpn_subnet
+  ipv4_cidr_block = var.ibm_vpn_net
   resource_group = ibm_resource_group.shared.id
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
 }
 
 resource "ibm_is_vpn_gateway" "vpn-gateway" {
   name   = "vpn-gateway"
-  subnet = ibm_is_subnet.vpn.id
+  subnet = ibm_is_subnet.vpn-net.id
   mode   = "route"
   resource_group = ibm_resource_group.shared.id
 }
@@ -213,10 +213,10 @@ resource "ibm_is_ipsec_policy" "ipsec-meemoo-dc" {
 resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dc" {
   name          = "vpn-meemoo-dc"
   vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway.id
-  peer_address  = var.meemoo_vpn_peer_ip
+  peer_address  = var.vpn_meemoo_publicip
   preshared_key = var.ipsec_vpn_psk
   local_cidrs = [ibm_is_vpc_address_prefix.dc-ibm-prefix.cidr]
-  peer_cidrs = [var.meemoo_vpn_subnet]
+  peer_cidrs = [var.vpn_meemoo_cidr]
   admin_state_up = true
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
@@ -233,7 +233,7 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 #  name        = "route-meemoo-dc"
 #  vpc         = ibm_is_vpc.dc-ibm.id
 #  zone        = var.zone
-#  destination = var.meemoo_vpn_subnet
+#  destination = var.vpn_meemoo_cidr
 #  next_hop    = ibm_is_vpn_gateway_connection.vpn-meemoo-dc.id
 #}
 
@@ -250,7 +250,7 @@ output "vpc-vm-public-ip" {
 
 resource "ibm_is_public_gateway" "rhos-public-gateway" {
     resource_group = ibm_resource_group.shared.id
-    name = "rhos-public-gateway"
+    name = "public-gateway"
     vpc = ibm_is_vpc.dc-ibm.id
     zone = var.zone
     #floating_ip = [ibm_is_floating_ip.public-ip.id]
@@ -268,14 +268,14 @@ resource "ibm_is_security_group_rule" "allow_ssh" {
   }
 }
 
-resource "ibm_is_subnet" "rhos" {
+resource "ibm_is_subnet" "openshift-net" {
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
   resource_group = ibm_resource_group.shared.id
-  name = "rhos"
+  name = "openshift-net"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
   public_gateway = ibm_is_public_gateway.rhos-public-gateway.id
-  ipv4_cidr_block = var.rhos_subnet
+  ipv4_cidr_block = var.ibm_openshift_net
 }
 
 resource "ibm_is_vpc_address_prefix" "dc-ibm-prefix" {
@@ -293,7 +293,7 @@ resource "ibm_is_instance" "vm-vpc" {
   zone = var.zone
   image = "r010-7b4a1103-c5ed-4a14-87c0-5f75b9f3c86a"
   primary_network_interface {
-        subnet = ibm_is_subnet.rhos.id
+        subnet = ibm_is_subnet.openshift-net.id
   }
   keys              = [for key in ibm_is_ssh_key.keys: key.id]
 }
