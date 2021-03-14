@@ -42,6 +42,10 @@ resource "ibm_database" "events-qas" {
     address = ibm_compute_vm_instance.vm1.private_subnet
     description = "vm1"
   }
+  whitelist {
+    address = "${local.zone_cse_source_address}/32"
+    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  }
 }
 
 variable "password_db_events_admin" {
@@ -75,6 +79,10 @@ resource "ibm_database" "events" {
   whitelist {
     address = ibm_compute_vm_instance.vm1.private_subnet
     description = "vm1"
+  }
+  whitelist {
+    address = "${local.zone_cse_source_address}/32"
+    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
   }
 }
 
@@ -110,6 +118,10 @@ resource "ibm_database" "avo2-qas" {
     address = ibm_compute_vm_instance.vm1.private_subnet
     description = "vm1"
   }
+  whitelist {
+    address = "${local.zone_cse_source_address}/32"
+    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  }
 }
 
 variable "password_db_avo2_admin" {
@@ -144,18 +156,22 @@ resource "ibm_database" "avo2" {
     address = ibm_compute_vm_instance.vm1.private_subnet
     description = "vm1"
   }
+  whitelist {
+    address = "${local.zone_cse_source_address}/32"
+    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  }
 }
 #
-resource "ibm_is_virtual_endpoint_gateway" "pg-avo2-qas" {
-  name = "pg-avo2-qas"
-  ips {
-    name = "pg-avo2-qas"
-    subnet = ibm_is_subnet.vpe-net.id
-  }
-  target {
-    crn          = ibm_database.avo2-qas.id
-    resource_type = "provider_cloud_service"
-  }
-  vpc = ibm_is_vpc.dc-ibm.id
-  resource_group = ibm_resource_group.qas.id
-}
+#resource "ibm_is_virtual_endpoint_gateway" "pg-avo2-qas" {
+#  name = "pg-avo2-qas"
+#  ips {
+#    name = "pg-avo2-qas"
+#    subnet = ibm_is_subnet.vpe-net.id
+#  }
+#  target {
+#    crn          = ibm_database.avo2-qas.id
+#    resource_type = "provider_cloud_service"
+#  }
+#  vpc = ibm_is_vpc.dc-ibm.id
+#  resource_group = ibm_resource_group.qas.id
+#}

@@ -24,13 +24,21 @@ variable "ibm_vpc_address_prefix" {
   type = string
 }
 
-variable "vpn_meemoo_publicip" {
-  description = "public IP address of the memmoo ipsec vpn endpoint"
+variable "meemoo_dco_publicip" {
+  description = "public IP address of the memmoo ipsec vpn endpoint in dco"
+  type = string
+}
+variable "meemoo_dcg_publicip" {
+  description = "public IP address of the memmoo ipsec vpn endpoint in dcg"
   type = string
 }
 
-variable "vpn_meemoo_cidr" {
-  description = "traffic selector for the meemoo side of the ipsec vpn"
+variable "meemoo_dco_cidr" {
+  description = "traffic selector for the meemoo dco side of the ipsec vpn"
+  type = string
+}
+variable "meemoo_dcg_cidr" {
+  description = "traffic selector for the meemoo dcg side of the ipsec vpn"
   type = string
 }
 
@@ -189,8 +197,22 @@ resource "ibm_is_vpn_gateway" "vpn-gateway" {
 }
 
 output "vpn-public-ip" {
-  description = "Public IP address of the VPN gateway for the dc-ibm VPC"
-  value = ibm_is_vpn_gateway.vpn-gateway.public_ip_address
+  description = "Public IP addresses of the VPN gateway for the dc-ibm VPC"
+  value = <<EOT
+  ${ibm_is_vpn_gateway.vpn-gateway.public_ip_address}
+  ${ibm_is_vpn_gateway.vpn-gateway.public_ip_address2}
+  EOT
+}
+
+# The source address for traafic flowing from the VPC to private service
+# endpoints and callsic infrastructure. Is needed for adding to the whitelist
+# of IBM cloud database services.
+# The cse_soure_address attribute exposes the SNAT address for all zones. Below
+# the source address for our zone is selected from the list.
+locals {
+ zone_cse_source_address = ibm_is_vpc.dc-ibm.cse_source_addresses[
+   index(ibm_is_vpc.dc-ibm.cse_source_addresses[*].zone_name,var.zone)
+ ]["address"]
 }
 
 resource "ibm_is_ike_policy" "ike-meemoo-dc" {
@@ -210,13 +232,25 @@ resource "ibm_is_ipsec_policy" "ipsec-meemoo-dc" {
     resource_group = ibm_resource_group.shared.id
 }
 
-resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dc" {
-  name          = "vpn-meemoo-dc"
+resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dcg" {
+  name          = "vpn-meemoo-dcg"
   vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway.id
-  peer_address  = var.vpn_meemoo_publicip
+  peer_address  = var.meemoo_dcg_publicip
   preshared_key = var.ipsec_vpn_psk
-  local_cidrs = [ibm_is_vpc_address_prefix.dc-ibm-prefix.cidr]
-  peer_cidrs = [var.vpn_meemoo_cidr]
+  local_cidrs = [ ibm_is_vpc_address_prefix.dc-ibm-prefix.cidr, "166.8.0.0/14" ]
+  peer_cidrs = [ var.meemoo_dcg_cidr ]
+  admin_state_up = true
+  ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
+  ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
+}
+
+resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dco" {
+  name          = "vpn-meemoo-dco"
+  vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway.id
+  peer_address  = var.meemoo_dco_publicip
+  preshared_key = var.ipsec_vpn_psk
+  local_cidrs = [ibm_is_vpc_address_prefix.dc-ibm-prefix.cidr, "166.8.0.0/14" ]
+  peer_cidrs = [var.meemoo_dco_cidr]
   admin_state_up = true
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
@@ -228,25 +262,23 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 }
 
 # This fails: created manualy or with te api
+# https://github.com/IBM-Cloud/terraform-provider-ibm/issues/2270
+#resource "ibm_is_vpc_routing_table_route" "route-meemoo-dcg" {
+#  routing_table = ibm_is_subnet.vpn-net.routing_table
+#  name        = "route-meemoo-dcg"
+#  vpc         = ibm_is_vpc.dc-ibm.id
+#  zone        = var.zone
+#  destination = var.meemoo_dcg_cidr
+#  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-meemoo-dcg.id), 1)
+#}
 #resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
-#  routing_table = ibm_is_subnet.vpn.routing_table
+#  routing_table = ibm_is_subnet.vpn-net.routing_table
 #  name        = "route-meemoo-dc"
 #  vpc         = ibm_is_vpc.dc-ibm.id
 #  zone        = var.zone
-#  destination = var.vpn_meemoo_cidr
-#  next_hop    = ibm_is_vpn_gateway_connection.vpn-meemoo-dc.id
+#  destination = var.meemoo_dco_cidr
+#  next_hop    = ibm_is_vpn_gateway_connection.vpn-meemoo-dco.id
 #}
-
-resource "ibm_is_floating_ip" "public-ip" {
-  name   = "public-ip"
-  target = ibm_is_instance.vm-vpc.primary_network_interface.0.id
-  resource_group = ibm_resource_group.shared.id
-}
-
-output "vpc-vm-public-ip" {
-  description = "Public IP address of the vm"
-  value = ibm_is_floating_ip.public-ip.address
-}
 
 resource "ibm_is_public_gateway" "rhos-public-gateway" {
     resource_group = ibm_resource_group.shared.id
@@ -256,16 +288,15 @@ resource "ibm_is_public_gateway" "rhos-public-gateway" {
     #floating_ip = [ibm_is_floating_ip.public-ip.id]
 }
 
-resource "ibm_is_security_group_rule" "allow_ssh" {
-  depends_on = [ibm_is_floating_ip.public-ip]
+resource "ibm_is_security_group_rule" "allow_dco" {
   group      = ibm_is_vpc.dc-ibm.default_security_group
   direction  = "inbound"
-  remote     = "0.0.0.0/0"
-
-  tcp {
-    port_min = 22
-    port_max = 22
-  }
+  remote     = var.meemoo_dco_cidr
+}
+resource "ibm_is_security_group_rule" "allow_dcg" {
+  group      = ibm_is_vpc.dc-ibm.default_security_group
+  direction  = "inbound"
+  remote     = var.meemoo_dcg_cidr
 }
 
 resource "ibm_is_subnet" "openshift-net" {
