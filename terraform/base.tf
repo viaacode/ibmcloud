@@ -28,6 +28,7 @@ variable "meemoo_dco_publicip" {
   description = "public IP address of the memmoo ipsec vpn endpoint in dco"
   type = string
 }
+
 variable "meemoo_dcg_publicip" {
   description = "public IP address of the memmoo ipsec vpn endpoint in dcg"
   type = string
@@ -37,6 +38,7 @@ variable "meemoo_dco_cidr" {
   description = "traffic selector for the meemoo dco side of the ipsec vpn"
   type = string
 }
+
 variable "meemoo_dcg_cidr" {
   description = "traffic selector for the meemoo dcg side of the ipsec vpn"
   type = string
@@ -49,9 +51,11 @@ variable "ipsec_vpn_psk" {
 variable "ibm_openshift_net" {
   description = "subnet for the rhos openshift cluster"
 }
+
 variable "ibm_vpn_net" {
   description = "subnet for the for the vpc vpn gateway"
 }
+
 variable "ibm_vpe_net" {
   description = "subnet for the for the vpc virtual private endpoints"
 }
@@ -263,22 +267,23 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 
 # This fails: created manualy or with te api
 # https://github.com/IBM-Cloud/terraform-provider-ibm/issues/2270
-#resource "ibm_is_vpc_routing_table_route" "route-meemoo-dcg" {
-#  routing_table = ibm_is_subnet.vpn-net.routing_table
-#  name        = "route-meemoo-dcg"
-#  vpc         = ibm_is_vpc.dc-ibm.id
-#  zone        = var.zone
-#  destination = var.meemoo_dcg_cidr
-#  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-meemoo-dcg.id), 1)
-#}
-#resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
-#  routing_table = ibm_is_subnet.vpn-net.routing_table
-#  name        = "route-meemoo-dc"
-#  vpc         = ibm_is_vpc.dc-ibm.id
-#  zone        = var.zone
-#  destination = var.meemoo_dco_cidr
-#  next_hop    = ibm_is_vpn_gateway_connection.vpn-meemoo-dco.id
-#}
+resource "ibm_is_vpc_routing_table_route" "route-meemoo-dcg" {
+  routing_table = ibm_is_subnet.vpn-net.routing_table
+  name        = "route-meemoo-dcg"
+  vpc         = ibm_is_vpc.dc-ibm.id
+  zone        = var.zone
+  destination = var.meemoo_dcg_cidr
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-meemoo-dcg.id), 1)
+}
+
+resource "ibm_is_vpc_routing_table_route" "route-meemoo-dco" {
+  routing_table = ibm_is_subnet.vpn-net.routing_table
+  name        = "route-meemoo-dco"
+  vpc         = ibm_is_vpc.dc-ibm.id
+  zone        = var.zone
+  destination = var.meemoo_dco_cidr
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-meemoo-dco.id), 1)
+}
 
 resource "ibm_is_public_gateway" "rhos-public-gateway" {
     resource_group = ibm_resource_group.shared.id
@@ -293,6 +298,7 @@ resource "ibm_is_security_group_rule" "allow_dco" {
   direction  = "inbound"
   remote     = var.meemoo_dco_cidr
 }
+
 resource "ibm_is_security_group_rule" "allow_dcg" {
   group      = ibm_is_vpc.dc-ibm.default_security_group
   direction  = "inbound"

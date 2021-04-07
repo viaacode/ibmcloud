@@ -140,7 +140,7 @@ resource "ibm_database" "avo2" {
   location                     =  var.location
   version                      = "11"
   adminpassword                = var.password_db_avo2_admin
-  members_memory_allocation_mb = 2048
+  members_memory_allocation_mb = 8192
   members_disk_allocation_mb   = 51200
   members_cpu_allocation_count = 0
   service_endpoints            = "public-and-private"
