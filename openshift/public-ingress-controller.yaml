@@ -1,0 +1,16 @@
+# Public ingress controller configuration of public access to the applications
+# in the meemoo2 openshift cluster.
+# cfr.https://cloud.ibm.com/docs/openshift?topic=openshift-ingress-roks4#priv-se-pub-controller
+# Usage: oc create -f public-ingress-controller.yaml -n openshift-ingress-operator
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: public-ingress-controller
+  namespace: openshift-ingress-operator
+spec:
+  replicas: 2
+  domain: viaa.be
+  endpointPublishingStrategy:
+    loadBalancer:
+      scope: External
+    type: LoadBalancerService
