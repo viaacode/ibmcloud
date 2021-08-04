@@ -208,8 +208,8 @@ output "vpn-public-ip" {
   EOT
 }
 
-# The source address for traafic flowing from the VPC to private service
-# endpoints and callsic infrastructure. Is needed for adding to the whitelist
+# The source address for traffic flowing from the VPC to private service
+# endpoints and classic infrastructure. Is needed for adding to the whitelist
 # of IBM cloud database services.
 # The cse_soure_address attribute exposes the SNAT address for all zones. Below
 # the source address for our zone is selected from the list.
@@ -285,12 +285,18 @@ resource "ibm_is_vpc_routing_table_route" "route-meemoo-dco" {
   next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-meemoo-dco.id), 1)
 }
 
-resource "ibm_is_public_gateway" "rhos-public-gateway" {
+resource "ibm_is_floating_ip" "public-gateway-ip" {
+  name = "public-gateway-ip"
+}
+
+resource "ibm_is_public_gateway" "public-gateway" {
     resource_group = ibm_resource_group.shared.id
     name = "public-gateway"
     vpc = ibm_is_vpc.dc-ibm.id
     zone = var.zone
-    #floating_ip = [ibm_is_floating_ip.public-ip.id]
+    floating_ip = {
+      id = ibm_is_floating_ip.public-gateway-ip.id
+    }
 }
 
 resource "ibm_is_security_group_rule" "allow_dco" {
@@ -311,7 +317,7 @@ resource "ibm_is_subnet" "openshift-net" {
   name = "openshift-net"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
-  public_gateway = ibm_is_public_gateway.rhos-public-gateway.id
+  public_gateway = ibm_is_public_gateway.public-gateway.id
   ipv4_cidr_block = var.ibm_openshift_net
 }
 
