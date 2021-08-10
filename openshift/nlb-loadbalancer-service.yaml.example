@@ -1,0 +1,23 @@
+# Example service of type loadbalancer for openshift in the IBM cloud.
+# IBM will automatically create a private LoadBalancer in the specified VPC subnet.
+# This subnet must not contain openshift worker nodes.
+# The created loadbalancer will have the name kube-<cluster-id>-<service-uid>. (service-uid os the uid
+# of this service with the dashes removed
+apiVersion: v1
+kind: Service
+metadata:
+ name: sc-events-db-dev-vpc-nlb
+ annotations:
+   service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features: "nlb"
+   service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: "private"
+   service.kubernetes.io/ibm-load-balancer-cloud-provider-vpc-subnets: "02b7-7cad7086-b673-42c9-8b07-aada0ec00b76"
+spec:
+ type: LoadBalancer
+ selector:
+   name: sc-events-db-dev
+ ports:
+  - name: postgres
+    protocol: TCP
+    port: 5432
+    targetPort: 5432
+ externalTrafficPolicy: Cluster
