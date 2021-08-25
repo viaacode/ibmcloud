@@ -1,0 +1,162 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: postgresql-meemoo
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    labels:
+      app: ${app}
+      env: ${env}
+    name: ${app}-${env}
+  spec:
+    ports:
+    - name: postgresql
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+    selector:
+      deploymentconfig: ${app}-${env}
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: ${app}
+      env: ${env}
+      postgres: "12"
+    name: ${app}-${env}
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      deploymentconfig: ${app}-${env}
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          deploymentconfig: ${app}-${env}
+      spec:
+        containers:
+        - env:
+          - name: PGDATA
+            value: /var/lib/postgresql/data/dbs
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: ${app}-${env}
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: ${app}-${env}
+          - name: POSTGRES_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: ${app}-${env}
+          image: docker.io/postgres:${DB_VERSION}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - /usr/bin/pg_isready -U ${POSTGRES_USER}  -d  ${POSTGRES_DATABASE} || [ $? -lt 2 ]
+            failureThreshold: 10
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 3
+          name: postgresql
+          ports:
+          - containerPort: 5432
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - /usr/bin/pg_isready -U ${POSTGRES_USER} -h 127.0.0.1 -d ${POSTGRES_DATABASE}
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 600Mi
+            requests:
+              cpu: 100m
+              memory: 384Mi
+          securityContext:
+            capabilities: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: pg-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          runAsUser: 999
+          fsGroup: 999
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: pg-data
+          persistentVolumeClaim:
+            claimName: ${app}-${env}
+    test: false
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    annotations:
+      template.openshift.io/expose-database-name: '{.data[''database-name'']}'
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+      template.openshift.io/expose-username: '{.data[''database-user'']}'
+    name: ${app}-${env}
+  stringData:
+    database-name: ${POSTGRES_DATABASE}
+    database-password: ${POSTGRES_PASSWORD}
+    database-user: ${POSTGRES_USER}
+
+parameters:
+- name: env
+  value: int
+- name: app
+  value: pg-myapp
+- name: DB_VERSION
+  value: '12'
+- description: Username for PostgreSQL user that will be used for accessing the database.
+  displayName: PostgreSQL Connection Username
+  from: user[A-Z0-9]{3}
+  generate: expression
+  name: POSTGRES_USER
+  required: true
+- description: Password for the PostgreSQL connection user.
+  displayName: PostgreSQL Connection Password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: POSTGRES_PASSWORD
+  required: true
+- description: Name of the PostgreSQL database accessed.
+  displayName: PostgreSQL Database Name
+  name: POSTGRES_DATABASE
+  required: true
+  value: sampledb
