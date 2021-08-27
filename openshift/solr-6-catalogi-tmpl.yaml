@@ -1,0 +1,419 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: solr6-meemoo
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: solr-${env}
+    name: solr-${env}
+  spec:
+    ports:
+    - name: http
+      port: 2080
+      protocol: TCP
+      targetPort: 2080
+    - name: http2
+      port: 2081
+      protocol: TCP
+      targetPort: 2081
+    selector:
+      app: solr-${env}
+    sessionAffinity: None
+    type: ClusterIP
+    selector:
+      app: solr-${env}
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: solr-${env}
+    name: zookeeper-service-${env}
+  spec:
+    ports:
+    - port: 2181
+      protocol: TCP
+      targetPort: 2181
+    selector:
+      app: zookeeper-app-${env}
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    labels:
+      app: solr-${env}
+    name: solr-ss-${env}
+  spec:
+    podManagementPolicy: OrderedReady
+    replicas: 1
+    selector:
+      matchLabels:
+        app: solr-${env}
+    serviceName: solr-${env}
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: solr-${env}
+      spec:      
+        containers:
+        - env:
+          - name: SOLR_HOME
+            valueFrom:
+              configMapKeyRef:
+                key: solrHome
+                name: solr-config-${env}
+          - name: ZK_HOST
+            valueFrom:
+              configMapKeyRef:
+                key: zkHost
+                name: solr-config-${env}
+          - name: SOLR_HOST
+            valueFrom:
+              configMapKeyRef:
+                key: solrHost
+                name: solr-config-${env}
+          - name: SOLR_LOGS_DIR
+            valueFrom:
+              configMapKeyRef:
+                key: solrLogsDir
+                name: solr-config-${env}
+          - name: SOLR_HEAP
+            value: 1536M
+          image: solr:6
+          command:
+            - /bin/bash
+            - '-c'
+            - source /mnt/data/.solr.envs && solr-foreground
+          imagePullPolicy: IfNotPresent         
+          name: solr-${env}
+          ports:
+          - containerPort: 2080
+            name: solr-port
+            protocol: TCP
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1600Mi
+            requests:
+              cpu: 200m
+              memory: 364Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /store
+            name: solrdata
+          - mountPath: /mnt/scripts
+            name: scripts-vol
+          - mountPath: /mnt/data
+            name: conf-vol
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - /mnt/scripts/run.sh
+          image: alpine:latest
+          imagePullPolicy: IfNotPresent
+          name: init-set
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /mnt/scripts
+            name: scripts-vol
+          - mountPath: /mnt/data
+            name: conf-vol
+        - args:
+          - mkdir -p /store/data;  mkdir -p /store/data ;  chmod 755  -R /store ; chown 8983:8983 -R  /store/
+          command:
+          - /bin/sh
+          - -c
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          name: init-solr-data
+          resources: {}
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: false
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /store
+            name: solrdata
+          - mountPath: /mnt/scripts
+            name: scripts-vol
+          - mountPath: /mnt/data
+            name: conf-vol
+        - args:
+          - cp /mnt/data/set.conf /store/data/solr.xml && cp /mnt/data/set.conf /opt/solr/server/solr/solr.xml
+          command:
+          - /bin/sh
+          - -c
+          image: solr:6
+          imagePullPolicy: IfNotPresent
+
+          name: init-solr-xml
+          resources: {}
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: false
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /store
+            name: solrdata
+          - mountPath: /mnt/scripts
+            name: scripts-vol
+          - mountPath: /mnt/data
+            name: conf-vol
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          runAsUser: 8983
+        terminationGracePeriodSeconds: 10
+        serviceAccountName: meemoo-priv
+        volumes:
+        - configMap:
+            defaultMode: 365
+            name: solr-config
+          name: scripts-vol
+        - emptyDir: {}
+          name: conf-vol
+        - name: solrdata
+          persistentVolumeClaim:
+            claimName: task-solr-pv-claim
+    updateStrategy:
+      rollingUpdate:
+        partition: 0
+      type: RollingUpdate
+    volumeClaimTemplates:
+    - metadata:
+        creationTimestamp: null
+        name: solrdata
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+      status:
+        phase: Pending
+- apiVersion: v1
+  data:
+    solrHome: /store/data
+    solrHost: solr-${env}
+    solrLogsDir: /store/logs
+    zkHost: zookeeper-service-${env}:2181
+  kind: ConfigMap
+  metadata:
+    labels:
+      app: solr-${env}
+    name: solr-config-${env}
+- apiVersion: v1
+  data:
+    run.sh: |
+      #!/bin/sh
+      SET_INDEX=${HOSTNAME##*-}
+      echo "Starting initializing for pod $SET_INDEX"
+      if [ "$SET_INDEX" = "0" ]; then
+        cp /mnt/scripts/set-0.conf /mnt/data/set.conf
+        echo "export SOLR_PORT=2080" > /mnt/data/.solr.envs
+      elif [ "$SET_INDEX" = "1" ]; then
+        cp /mnt/scripts/set-1.conf /mnt/data/set.conf
+        echo "export SOLR_PORT=2081" > /mnt/data/.solr.envs
+
+      else
+        echo "Invalid statefulset index"
+        exit 1
+      fi
+    set-0.conf: |
+      <solr>
+
+        <solrcloud>
+          <str name="host">${host:}</str>
+          <int name="hostPort">2080</int>
+          <str name="hostContext">${hostContext:solr}</str>
+          <int name="zkClientTimeout">${zkClientTimeout:15000}</int>
+          <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+        </solrcloud>
+
+        <shardHandlerFactory name="shardHandlerFactory"
+          class="HttpShardHandlerFactory">
+          <int name="socketTimeout">${socketTimeout:0}</int>
+          <int name="connTimeout">${connTimeout:0}</int>
+        </shardHandlerFactory>
+
+      </solr>
+    set-1.conf: |
+      <solr>
+
+        <solrcloud>
+          <str name="host">${host:}</str>
+          <int name="hostPort">2081</int>
+          <str name="hostContext">${hostContext:solr}</str>
+          <int name="zkClientTimeout">${zkClientTimeout:15000}</int>
+          <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+        </solrcloud>
+
+        <shardHandlerFactory name="shardHandlerFactory"
+          class="HttpShardHandlerFactory">
+          <int name="socketTimeout">${socketTimeout:0}</int>
+          <int name="connTimeout">${connTimeout:0}</int>
+        </shardHandlerFactory>
+
+      </solr>
+  kind: ConfigMap
+  metadata:    
+    name: solr-config
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    labels:
+      app: solr-${env}
+    name: zookeeper-ss-${env}
+  spec:
+    podManagementPolicy: OrderedReady
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: zookeeper-app-${env}
+    serviceName: zookeeper-service-${env}
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: zookeeper-app-${env}
+      spec:
+        containers:
+          - env:
+              - name: ZOO_MY_ID
+                valueFrom:
+                  configMapKeyRef:
+                    key: zooMyId
+                    name: zookeeper-config-${env}
+              - name: ZOO_LOG_DIR
+                valueFrom:
+                  configMapKeyRef:
+                    key: zooLogDir
+                    name: zookeeper-config-${env}
+              - name: ZOO_DATA_DIR
+                valueFrom:
+                  configMapKeyRef:
+                    key: zooDataDir
+                    name: zookeeper-config-${env}
+              - name: ZOO_DATA_LOG_DIR
+                valueFrom:
+                  configMapKeyRef:
+                    key: zooDataLogDir
+                    name: zookeeper-config-${env}
+              - name: ZOO_PORT
+                valueFrom:
+                  configMapKeyRef:
+                    key: zooPort
+                    name: zookeeper-config-${env}
+            image: 'image-registry.openshift-image-registry.svc:5000/catalogi/zookeeper:latest'
+            imagePullPolicy: IfNotPresent
+
+            name: zookeeper-${env}
+            ports:
+              - containerPort: 2181
+                name: zookeeper-port
+                protocol: TCP
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /store
+                name: volzookeeper-${env}
+        dnsPolicy: ClusterFirst
+        initContainers:
+          - command:
+              - sh
+              - '-c'
+              - 'mkdir -p /store/data && chown 1000:1000 /store/data'
+            image: busybox
+            imagePullPolicy: IfNotPresent
+
+            name: init-zookeeper-data
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /store
+                name: volzookeeper-${env}
+          - command:
+              - sh
+              - '-c'
+              - 'mkdir -p /store/logs && chown 1000:1000 /store/logs'
+            image: busybox
+            imagePullPolicy: IfNotPresent
+
+            name: init-zookeeper-logs
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /store
+                name: volzookeeper-${env}
+          - command:
+              - sh
+              - '-c'
+              - 'mkdir -p /store/datalog && chown 1000:1000 /store/datalog'
+            image: busybox
+            imagePullPolicy: IfNotPresent
+
+            name: init-zookeeper-datalog
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /store
+                name: volzookeeper-${env}
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 10
+        volumes:
+          - name: volzookeeper-${env}
+            persistentVolumeClaim:
+              claimName: task-zookeeper-pv-claim
+    updateStrategy:
+      rollingUpdate:
+        partition: 0
+      type: RollingUpdate
+    volumeClaimTemplates:
+      - metadata:
+          creationTimestamp: null
+          name: volzookeeper-${env}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+        status:
+          phase: Pending    
+- apiVersion: v1
+  data:
+    zooDataDir: /store/data
+    zooDataLogDir: /store/datalog
+    zooLogDir: /store/logs
+    zooMyId: '1'
+    zooPort: '2181'
+  kind: ConfigMap
+  metadata:
+    labels:
+      app: solr-${env}
+    name: zookeeper-config-${env}    
+parameters:
+- name: env
+  value: int
