@@ -1,4 +1,5 @@
 terraform/.terraform*
 terraform/*.tfvars
 terraform/terraform.tfstate*
-openshift/crt-ibmcloud.do.viaa.be.par
+openshift/*.par
+openshift/secrets

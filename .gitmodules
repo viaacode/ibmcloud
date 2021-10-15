@@ -1,0 +1,3 @@
+[submodule "openshift/kubernetes-ingress"]
+	path = openshift/kubernetes-ingress
+	url = https://github.com/nginxinc/kubernetes-ingress/
