@@ -1,0 +1,10 @@
+apiVersion: k8s.nginx.org/v1
+kind: Policy
+metadata:
+  name: verify-client-cert
+  namespace: nginx-ingress
+spec:
+  ingressClassName: nginx-qas
+  ingressMTLS:
+    clientCertSecret: meemoo-ca-cert
+    verifyClient: "on"

@@ -17,6 +17,7 @@ objects:
     kind: ConfigMap
     metadata:
       name: nginx-config-${ENV}
+      namespace: nginx-ingress
     data:
       proxy-protocol: "True"
       real-ip-header: "proxy_protocol"
@@ -25,11 +26,12 @@ objects:
   - apiVersion: v1
     kind: Service
     metadata:
-     name: nginx-ingress-controller-${ENV}
-     annotations:
-       service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features: "proxy-protocol"
-       service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: "public"
-       service.kubernetes.io/ibm-load-balancer-cloud-provider-zone: "eu-de-1"
+      name: nginx-ingress-controller-${ENV}
+      namespace: nginx-ingress
+      annotations:
+        service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features: "proxy-protocol"
+        service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: "public"
+        service.kubernetes.io/ibm-load-balancer-cloud-provider-zone: "eu-de-1"
     spec:
       type: LoadBalancer
       selector:
@@ -51,6 +53,7 @@ objects:
       annotations:
         deployment.kubernetes.io/revision: "1"
       name: nginx-ingress-controller-${ENV}
+      namespace: nginx-ingress
     spec:
       replicas: ${{NPODS}}
       selector:
@@ -76,6 +79,7 @@ objects:
             - -leader-election-lock-name=nginx-ingress-controller-lock-${ENV}
             - -wildcard-tls-secret=nginx-ingress/star.hetarchief.be
             - -ingress-class=nginx-${ENV}
+            - -enable-preview-policies=${PREVIEW}
             env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -124,16 +128,23 @@ objects:
           serviceAccountName: nginx-ingress
           terminationGracePeriodSeconds: 30
 parameters:
-  - description: Subnet of the loadbalancers
-    displayName: 'lb-subnet'
-    name: LB_SUBNET
-    required: true
   - description: Environment (prd, qas, int or dev)
     displayName: Environment
     name: ENV 
     required: true
+  - description: scope
+    displayName: scope
+    name: SCOPE
+    required: true
+  - description: Subnet of the loadbalancers (allow proxy protocol)
+    displayName: lb-subnet
+    name: LB_SUBNET
+    required: true
   - description: Number of replica's for the ingress controller pods
-    displayName: 'n-pods'
+    displayName: n-pods
     name: NPODS
     value: "1"
-
+  - description: Enable Preview Policies
+    displayName: preview
+    name: PREVIEW
+    value: "false"

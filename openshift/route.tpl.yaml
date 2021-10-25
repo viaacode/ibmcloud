@@ -1,0 +1,43 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: api-nginx-virtual-server.tpl
+  namespace: nginx-ingress
+  annotations:
+    description: >-
+      Creates meemoo-specific configuration for an nginx ingress controller virtual server
+      with certificate authentication
+objects:
+  - apiVersion: k8s.nginx.org/v1
+    kind: VirtualServerRoute
+    metadata:
+      name: ticket-service-${Env}
+    spec:
+      host: ${DNSName}
+      ingressClassName: ${IngressClassName}
+      upstreams:
+      - name: ticket-service-${Env}
+        service: ticket-service-${Env}
+        port: 8080
+      subroutes:
+      - path: /ticket
+        action:
+          proxy:
+            upstream: ticket-service-${Env}
+            requestHeaders:
+              set:
+              - name: X-SSL-Client-S-DN
+                value: ${ssl_client_s_dn}
+parameters:
+  - description: Environment (prd, qas, int or dev)
+    displayName: Environment
+    name: Env 
+    required: true
+  - description: DNS name
+    displayName: DNSName
+    name: DNSName 
+    required: true
+  - description: Ingress Class
+    displayName: IngressClassName
+    name: IngressClassName 
+    required: true
