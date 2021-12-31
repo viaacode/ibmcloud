@@ -13,7 +13,7 @@ objects:
     metadata:
       name: ticket-service-${Env}
     spec:
-      host: ${DNSName}
+      host: ${MtlsHostName}
       ingressClassName: nginx-${Env}
       upstreams:
       - name: ticket-service-${Env}
@@ -34,8 +34,8 @@ parameters:
     name: Env 
     required: true
   - description: DNS name
-    displayName: DNSName
-    name: DNSName 
+    displayName: MtlsHostName
+    name: MtlsHostName 
     required: true
   - description: Subject DN header
     displayName: X-SSL-Client-S-DN

@@ -14,10 +14,10 @@ objects:
     metadata:
       annotations:
         meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
-      name: ${DNSName}
+      name: ${MtlsHostName}
       namespace: nginx-ingress
     spec:
-      host: ${DNSName}
+      host: ${MtlsHostName}
       ingressClassName: nginx-${Env}
       policies:
         - name: verify-client-cert-${Env}
@@ -46,8 +46,8 @@ parameters:
     name: Env
     required: true
   - description: DNS name
-    displayName: DNSName
-    name: DNSName
+    displayName: MtlsHostName
+    name: MtlsHostName
     required: true
   - description: TLS Certificate secret name
     displayName: TLSSecret
