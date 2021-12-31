@@ -3,20 +3,24 @@ kind: Template
 metadata:
   name: api-nginx-virtual-server.tpl
   annotations:
+    meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
     description: >-
       Creates meemoo-specific configuration for an nginx ingress controller virtual server
-      with certificate authentication
+      with certificate authentication. Requires an Ingress Class and a Secret of type
+      nginx.org/ca named meemoo-ca-cert-${Env} containing the meemoo ca certficate.
 objects:
   - apiVersion: k8s.nginx.org/v1
     kind: VirtualServer
     metadata:
+      annotations:
+        meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
       name: ${DNSName}
       namespace: nginx-ingress
     spec:
       host: ${DNSName}
       ingressClassName: ${IngressClassName}
       policies:
-        - name: verify-client-cert
+        - name: verify-client-cert-${Env}
       tls:
         secret: ${TLSSecret}
         redirect:
@@ -24,21 +28,37 @@ objects:
       routes:
         - path: /ticket
           route: meemoo-infra/ticket-service-${Env}
+  - apiVersion: k8s.nginx.org/v1
+    kind: Policy
+    metadata:
+      annotations:
+        meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
+      name: verify-client-cert-${Env}
+      namespace: nginx-ingress
+    spec:
+      ingressClassName: ${IngressClassName}
+      ingressMTLS:
+        clientCertSecret: meemoo-ca-cert-${Env}
+        verifyClient: ${VerifyClient}
 parameters:
   - description: Environment (prd, qas, int or dev)
     displayName: Environment
-    name: Env 
+    name: Env
     required: true
   - description: DNS name
     displayName: DNSName
-    name: DNSName 
+    name: DNSName
     required: true
   - description: Ingress Class
     displayName: IngressClassName
-    name: IngressClassName 
+    name: IngressClassName
     required: true
   - description: TLS Certificate secret name
     displayName: TLSSecret
     name: TLSSecret
     required: true
+  - description: Client certficate Check
+    displayName: VerifyClient
+    name: VerifyClient
+    value: "on"
 

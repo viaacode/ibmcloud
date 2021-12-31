@@ -2,7 +2,9 @@ apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: nginx-ingess-controller.tpl
+  namespace: nginx-ingress
   annotations:
+    meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
     description: >-
       Creates meemoo-specific configuration for the nginx ingress controller
       Used iso the operator as the operateor does not provide the annototaions needed for the service
@@ -10,13 +12,17 @@ objects:
   - apiVersion: networking.k8s.io/v1
     kind: IngressClass
     metadata:
-      name: nginx-${ENV}
+      annotations:
+        meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
+      name: nginx-${Env}
     spec:
       controller: nginx.org/ingress-controller
   - apiVersion: v1
     kind: ConfigMap
     metadata:
-      name: nginx-config-${ENV}
+      annotations:
+        meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
+      name: nginx-config-${Env}
       namespace: nginx-ingress
     data:
       proxy-protocol: "True"
@@ -26,16 +32,17 @@ objects:
   - apiVersion: v1
     kind: Service
     metadata:
-      name: nginx-ingress-controller-${ENV}
+      name: nginx-ingress-controller-${Env}
       namespace: nginx-ingress
       annotations:
+        meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
         service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features: "proxy-protocol"
         service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: "public"
         service.kubernetes.io/ibm-load-balancer-cloud-provider-zone: "eu-de-1"
     spec:
       type: LoadBalancer
       selector:
-        app: nginx-ingress-controller-${ENV}
+        app: nginx-ingress-controller-${Env}
       ports:
        - name: http
          protocol: TCP
@@ -51,14 +58,17 @@ objects:
     kind: Deployment
     metadata:
       annotations:
-        deployment.kubernetes.io/revision: "1"
-      name: nginx-ingress-controller-${ENV}
+        meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
+        image.openshift.io/triggers: >-
+          [{"from": {"kind": "ImageStreamTag", "name": "nginx-plus-ingress:${Env}"}, "fieldPath":
+            "spec.template.spec.containers[?(@.name==\"nginx-ingress-controller-${Env}\")].image"}]
+      name: nginx-ingress-controller-${Env}
       namespace: nginx-ingress
     spec:
       replicas: ${{NPODS}}
       selector:
         matchLabels:
-          app: nginx-ingress-controller-${ENV}
+          app: nginx-ingress-controller-${Env}
       strategy:
         rollingUpdate:
           maxSurge: 25%
@@ -66,19 +76,18 @@ objects:
         type: RollingUpdate
       template:
         metadata:
-          creationTimestamp: null
           labels:
-            app: nginx-ingress-controller-${ENV}
-          name: nginx-ingress-controller-${ENV}
+            app: nginx-ingress-controller-${Env}
+          name: nginx-ingress-controller-${Env}
         spec:
           containers:
           - args:
-            - -nginx-configmaps=nginx-ingress/nginx-config-${ENV}
-            - -default-server-tls-secret=nginx-ingress/star.hetarchief.be
+            - -nginx-configmaps=nginx-ingress/nginx-config-${Env}
+            - -default-server-tls-secret=nginx-ingress/star.hetarchief.be-${Env}
             - -nginx-plus
-            - -leader-election-lock-name=nginx-ingress-controller-lock-${ENV}
-            - -wildcard-tls-secret=nginx-ingress/star.hetarchief.be
-            - -ingress-class=nginx-${ENV}
+            - -leader-election-lock-name=nginx-ingress-controller-lock-${Env}
+            - -wildcard-tls-secret=nginx-ingress/star.hetarchief.be-${Env}
+            - -ingress-class=nginx-${Env}
             - -enable-preview-policies=${PREVIEW}
             env:
             - name: POD_NAMESPACE
@@ -91,9 +100,9 @@ objects:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: metadata.name
-            image: image-registry.openshift-image-registry.svc:5000/nginx-ingress/nginx-plus-ingress:${ENV}
+            image: image-registry.openshift-image-registry.svc:5000/nginx-ingress/nginx-plus-ingress:${Env}
             imagePullPolicy: IfNotPresent
-            name: nginx-ingress-controller-${ENV}
+            name: nginx-ingress-controller-${Env}
             ports:
             - containerPort: 80
               name: http
@@ -130,7 +139,7 @@ objects:
 parameters:
   - description: Environment (prd, qas, int or dev)
     displayName: Environment
-    name: ENV 
+    name: Env 
     required: true
   - description: scope
     displayName: scope
