@@ -37,7 +37,7 @@ objects:
       annotations:
         meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
         service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features: "proxy-protocol"
-        service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: "public"
+        service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: "${SCOPE}"
         service.kubernetes.io/ibm-load-balancer-cloud-provider-zone: "eu-de-1"
     spec:
       type: LoadBalancer
@@ -83,10 +83,10 @@ objects:
           containers:
           - args:
             - -nginx-configmaps=nginx-ingress/nginx-config-${Env}
-            - -default-server-tls-secret=nginx-ingress/star.hetarchief.be-${Env}
+            - -default-server-tls-secret=nginx-ingress/${DefaultTlsSecretName}
             - -nginx-plus
             - -leader-election-lock-name=nginx-ingress-controller-lock-${Env}
-            - -wildcard-tls-secret=nginx-ingress/star.hetarchief.be-${Env}
+            - -wildcard-tls-secret=nginx-ingress/${DefaultTlsSecretName}
             - -ingress-class=nginx-${Env}
             - -enable-preview-policies=${PREVIEW}
             env:
@@ -141,7 +141,7 @@ parameters:
     displayName: Environment
     name: Env 
     required: true
-  - description: scope
+  - description: exposure scope (private or public)
     displayName: scope
     name: SCOPE
     required: true
@@ -157,3 +157,7 @@ parameters:
     displayName: preview
     name: PREVIEW
     value: "false"
+  - description: Default Tls Secret
+    displayName: default-tls-secret-name
+    name: DefaultTlsSecretName
+    required: true

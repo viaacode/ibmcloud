@@ -14,7 +14,7 @@ objects:
       name: ticket-service-${Env}
     spec:
       host: ${DNSName}
-      ingressClassName: ${IngressClassName}
+      ingressClassName: nginx-${Env}
       upstreams:
       - name: ticket-service-${Env}
         service: ticket-service-${Env}
@@ -27,7 +27,7 @@ objects:
             requestHeaders:
               set:
               - name: X-SSL-Client-S-DN
-                value: ${ssl_client_s_dn}
+                value: ${XSslClientSDN}
 parameters:
   - description: Environment (prd, qas, int or dev)
     displayName: Environment
@@ -37,7 +37,7 @@ parameters:
     displayName: DNSName
     name: DNSName 
     required: true
-  - description: Ingress Class
-    displayName: IngressClassName
-    name: IngressClassName 
-    required: true
+  - description: Subject DN header
+    displayName: X-SSL-Client-S-DN
+    name: XSslClientSDN 
+    value: '${ssl_client_s_dn}'

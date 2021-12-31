@@ -18,7 +18,7 @@ objects:
       namespace: nginx-ingress
     spec:
       host: ${DNSName}
-      ingressClassName: ${IngressClassName}
+      ingressClassName: nginx-${Env}
       policies:
         - name: verify-client-cert-${Env}
       tls:
@@ -36,7 +36,7 @@ objects:
       name: verify-client-cert-${Env}
       namespace: nginx-ingress
     spec:
-      ingressClassName: ${IngressClassName}
+      ingressClassName: nginx-${Env}
       ingressMTLS:
         clientCertSecret: meemoo-ca-cert-${Env}
         verifyClient: ${VerifyClient}
@@ -49,10 +49,6 @@ parameters:
     displayName: DNSName
     name: DNSName
     required: true
-  - description: Ingress Class
-    displayName: IngressClassName
-    name: IngressClassName
-    required: true
   - description: TLS Certificate secret name
     displayName: TLSSecret
     name: TLSSecret
@@ -61,4 +57,3 @@ parameters:
     displayName: VerifyClient
     name: VerifyClient
     value: "on"
-
