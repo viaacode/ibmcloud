@@ -94,89 +94,6 @@ resource "ibm_resource_group" "prd" {
   name = "prd"
 }
 
-resource "ibm_network_vlan" "VIAA_public" {
-  name       = "VIAA_public"
-  datacenter = var.datacenter
-  type       = "PUBLIC"
-}
-
-resource "ibm_network_vlan" "VIAA_private" {
-  name       = "VIAA_private"
-  datacenter = var.datacenter
-  type       = "PRIVATE"
-}
-
-resource "ibm_security_group" "ipsec" {
-  name = "allow_ipsec"
-}
-
-resource "ibm_security_group_rule" "openvpn_in" {
-  direction = "ingress"
-  port_range_min = 1194
-  port_range_max = 1194
-  protocol = "udp"
-  security_group_id = ibm_security_group.ipsec.id
-}
-
-resource "ibm_security_group_rule" "openvpn_out" {
-  direction = "egress"
-  port_range_min = 1194
-  port_range_max = 1194
-  protocol = "udp"
-  security_group_id = ibm_security_group.ipsec.id
-}
-resource "ibm_security_group_rule" "ipsec_dco_in" {
-  direction = "ingress"
-  port_range_min = 500
-  port_range_max = 500
-  protocol = "udp"
-  remote_ip = var.viaa_dc_subnet
-  security_group_id = ibm_security_group.ipsec.id
-}
-
-resource "ibm_security_group_rule" "ipsec_dco_out" {
-  direction = "egress"
-  port_range_min = 500
-  port_range_max = 500
-  protocol = "udp"
-  remote_ip = var.viaa_dc_subnet
-  security_group_id = ibm_security_group.ipsec.id
-}
-
-resource "ibm_compute_vm_instance" "vm1" {
-  hostname                 = "viaa"
-  domain                   = "viaa.be"
-  datacenter               = var.datacenter
-  os_reference_code        = "DEBIAN_9_64"
-  network_speed            = 100
-  hourly_billing           = true
-  private_network_only     = false
-  cores                    = 1
-  memory                   = 1024
-  disks                    = [25]
-  dedicated_acct_host_only = true
-  local_disk               = false
-  ssh_key_ids              = [for key in ibm_compute_ssh_key.keys: key.id]
-  public_vlan_id           = ibm_network_vlan.VIAA_public.id
-  private_vlan_id          = ibm_network_vlan.VIAA_private.id
-}
-
-# not managed by terraform while transitionong to VPC
-#resource "ibm_container_cluster" "openshift" {
-#  name = "meemoo"
-#  kube_version = "3.11.161_openshift"
-#  machine_type = "b3c.8x32"
-#  hardware = "shared"
-#  datacenter = var.datacenter
-#  resource_group_id = ibm_resource_group.shared.id
-#  private_vlan_id = ibm_network_vlan.VIAA_private.id
-#  public_vlan_id = ibm_network_vlan.VIAA_public.id
-#  public_service_endpoint = true
-#  private_service_endpoint = true
-#  default_pool_size = 2
-#  disk_encryption = false
-#}
-
 resource "ibm_is_vpc" "dc-ibm" {
   resource_group = ibm_resource_group.shared.id
   name = "dc-ibm"
@@ -200,12 +117,9 @@ resource "ibm_is_vpn_gateway" "vpn-gateway" {
   resource_group = ibm_resource_group.shared.id
 }
 
-output "vpn-public-ip" {
+output "vpn-public-ips" {
   description = "Public IP addresses of the VPN gateway for the dc-ibm VPC"
-  value = <<EOT
-  ${ibm_is_vpn_gateway.vpn-gateway.public_ip_address}
-  ${ibm_is_vpn_gateway.vpn-gateway.public_ip_address2}
-  EOT
+  value = [ for k,v in ibm_is_vpn_gateway.vpn-gateway: v if substr(k,0,17) == "public_ip_address" ]
 }
 
 # The source address for traffic flowing from the VPC to private service
