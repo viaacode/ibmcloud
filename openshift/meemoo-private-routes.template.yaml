@@ -1,0 +1,52 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: meemoo-private-routes
+objects:
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    annotations:
+      tls.meemoo.be/cn: '*.cloud.meemoo.be'
+      tls.meemoo.be/expiry: "2022-10-13"
+      tls.meemoo.be/subjectAltNames: DNS:*.cloud.meemoo.be, DNS:*.private.cloud.meemoo.be
+    labels:
+      app: ${app}
+      app.kubernetes.io/component: ${app}-${env}
+      app.kubernetes.io/instance: ${app}-${env}
+      app.kubernetes.io/name: ${app}
+      app.kubernetes.io/part-of: ${app}
+      app.openshift.io/runtime: ${app}
+      app.openshift.io/runtime-version: ${env}
+      env: ${env}
+      tls-provider: meemoo
+      tls-sha1-fingerprint: 97C814886B2CB837EDDC5AC174709F151EDF3E07
+    name: ${app}-${env}-priv-route
+    namespace: ${namespace}
+  spec:
+    host: ${app}-${env}-${namespace}.private.cloud.meemoo.be
+    port:
+      targetPort: ${portname}
+    tls:
+      caCertificate: |-
+      certificate: |-
+      insecureEdgeTerminationPolicy: ${insecure}
+      key: |-
+      termination: edge
+    to:
+      kind: Service
+      name: ${app}-${env}
+      weight: 100
+    wildcardPolicy: None
+parameters:
+- name: env
+  value: int
+- name: namespace
+  value: default
+- name: app
+  value: test-app
+- name: portname
+  value: http
+- name: insecure
+  description: indicates the desired behavior for insecure connections (Allow|Redirect|Disable)
+  value: Redirect
