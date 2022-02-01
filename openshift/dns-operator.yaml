@@ -1,8 +1,8 @@
 # Modifification of the default openshift DNS Operator to
 # include DNS forwarding zones for the services in the meemoo
 # datacenters.
-# cfr. https://docs.openshift.com/dedicated/4/networking/dns-operator.html
-# Usage: oc edit dns.operator/default
+# cfr. https://docs.openshift.com/container-platform/4.9/networking/dns-operator.html
+# Usage: oc edit dns.operator/default -n openshift-dns-operator
 apiVersion: operator.openshift.io/v1
 kind: DNS
 metadata:
@@ -18,3 +18,4 @@ spec:
     zones:
     - do.viaa.be
     - dg.viaa.be
+    - private.cloud.meemoo.be
