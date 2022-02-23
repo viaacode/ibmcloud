@@ -29,6 +29,7 @@ objects:
       real-ip-header: "proxy_protocol"
       set-real-ip-from: ${LB_SUBNET}
       real-ip-recursive: 'True'
+      http-snippets: ${{HttpSnippet}}
   - apiVersion: v1
     kind: Service
     metadata:
@@ -161,3 +162,7 @@ parameters:
     displayName: default-tls-secret-name
     name: DefaultTlsSecretName
     required: true
+  - description: raw NGINX configuration snippet inserted in http context
+    displayName: http-snippet
+    name: HttpSnippet
+    required: false
