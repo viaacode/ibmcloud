@@ -17,7 +17,7 @@ resource "ibm_container_vpc_cluster" "meemoo2" {
          subnet_id = ibm_is_subnet.openshift-net.id
          name = var.zone
       }
-#  disable_public_service_endpoint = true
+  disable_public_service_endpoint = true
   wait_for_worker_update = true
   wait_till = "MasterNodeReady"
   }
