@@ -90,6 +90,7 @@ objects:
             - -wildcard-tls-secret=nginx-ingress/${DefaultTlsSecretName}
             - -ingress-class=nginx-${Env}
             - -enable-preview-policies=${PREVIEW}
+            - -enable-snippets=${SNIPPETS}
             env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -166,3 +167,7 @@ parameters:
     displayName: http-snippet
     name: HttpSnippet
     required: false
+  - description: Enable Snippets
+    displayName: snippets
+    name: SNIPPETS
+    value: "true"
