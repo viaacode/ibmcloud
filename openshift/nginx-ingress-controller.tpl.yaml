@@ -28,7 +28,8 @@ objects:
       proxy-protocol: "True"
       real-ip-header: "proxy_protocol"
       set-real-ip-from: ${LB_SUBNET}
-      real-ip-recursive: 'True'
+      real-ip-recursive: "True"
+      client-max-body-size: "2m"
       http-snippets: ${{HttpSnippet}}
   - apiVersion: v1
     kind: Service
