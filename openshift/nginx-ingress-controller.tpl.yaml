@@ -89,7 +89,6 @@ objects:
             - -leader-election-lock-name=nginx-ingress-controller-lock-${Env}
             - -wildcard-tls-secret=nginx-ingress/${DefaultTlsSecretName}
             - -ingress-class=nginx-${Env}
-            - -enable-preview-policies=${PREVIEW}
             - -enable-snippets=${SNIPPETS}
             env:
             - name: POD_NAMESPACE
@@ -155,10 +154,6 @@ parameters:
     displayName: n-pods
     name: NPODS
     value: "1"
-  - description: Enable Preview Policies
-    displayName: preview
-    name: PREVIEW
-    value: "false"
   - description: Default Tls Secret
     displayName: default-tls-secret-name
     name: DefaultTlsSecretName
