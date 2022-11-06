@@ -8,7 +8,7 @@ resource "ibm_resource_instance" "regbackup" {
 resource "ibm_container_vpc_cluster" "meemoo2" {
   name              = "meemoo2"
   vpc_id            = ibm_is_vpc.dc-ibm.id
-  kube_version         = "4.7.36_openshift"
+  kube_version         = "4.8.51_openshift"
     flavor            = "bx2.8x32"
   worker_count      = "5"
   cos_instance_crn  = ibm_resource_instance.regbackup.id

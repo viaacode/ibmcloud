@@ -61,12 +61,12 @@ variable "ibm_vpe_net" {
 }
 
 resource "ibm_is_subnet" "vpe-net" {
-  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
-  resource_group = ibm_resource_group.shared.id
   name = "vpe-net"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
   ipv4_cidr_block = var.ibm_vpe_net
+  resource_group = ibm_resource_group.shared.id
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
 }
 
 resource "ibm_is_ssh_key" "keys" {
@@ -160,6 +160,8 @@ resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dcg" {
   admin_state_up = true
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
+  interval = 30
+  timeout = 31
 }
 
 resource "ibm_is_vpn_gateway_connection" "vpn-meemoo-dco" {
@@ -201,6 +203,7 @@ resource "ibm_is_vpc_routing_table_route" "route-meemoo-dco" {
 
 resource "ibm_is_floating_ip" "public-gateway-ip" {
   name = "public-gateway-ip"
+  zone = var.zone
 }
 
 resource "ibm_is_public_gateway" "public-gateway" {
@@ -226,13 +229,13 @@ resource "ibm_is_security_group_rule" "allow_dcg" {
 }
 
 resource "ibm_is_subnet" "openshift-net" {
-  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
-  resource_group = ibm_resource_group.shared.id
   name = "openshift-net"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = var.zone
-  public_gateway = ibm_is_public_gateway.public-gateway.id
   ipv4_cidr_block = var.ibm_openshift_net
+  resource_group = ibm_resource_group.shared.id
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
+  public_gateway = ibm_is_public_gateway.public-gateway.id
 }
 
 resource "ibm_is_vpc_address_prefix" "dc-ibm-prefix" {
