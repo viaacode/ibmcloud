@@ -12,6 +12,9 @@ objects:
   - apiVersion: networking.k8s.io/v1
     kind: IngressClass
     metadata:
+      labels:
+        app: nginx-ingress-controller
+        env: ${Env}
       annotations:
         meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
       name: nginx-${Env}
@@ -24,6 +27,9 @@ objects:
         meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
       name: nginx-config-${Env}
       namespace: nginx-ingress
+      labels:
+        app: nginx-ingress-controller
+        env: ${Env}
     data:
       proxy-protocol: "True"
       real-ip-header: "proxy_protocol"
@@ -37,6 +43,9 @@ objects:
     metadata:
       name: nginx-ingress-controller-${Env}
       namespace: nginx-ingress
+      labels:
+        app: nginx-ingress-controller
+        env: ${Env}
       annotations:
         meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
         service.kubernetes.io/ibm-load-balancer-cloud-provider-enable-features: "proxy-protocol"
@@ -45,7 +54,8 @@ objects:
     spec:
       type: LoadBalancer
       selector:
-        app: nginx-ingress-controller-${Env}
+        app: nginx-ingress-controller
+        env: ${Env}
       ports:
        - name: http
          protocol: TCP
@@ -60,6 +70,9 @@ objects:
   - apiVersion: apps/v1
     kind: Deployment
     metadata:
+      labels:
+        app: nginx-ingress-controller
+        env: ${Env}
       annotations:
         meemoo.be/source: "https://github.com/viaacode/ibmcloud.git"
         image.openshift.io/triggers: >-
@@ -71,7 +84,8 @@ objects:
       replicas: ${{NPODS}}
       selector:
         matchLabels:
-          app: nginx-ingress-controller-${Env}
+          app: nginx-ingress-controller
+          env: ${Env}
       strategy:
         rollingUpdate:
           maxSurge: 25%
@@ -80,7 +94,8 @@ objects:
       template:
         metadata:
           labels:
-            app: nginx-ingress-controller-${Env}
+            app: nginx-ingress-controller
+            env: ${Env}
           name: nginx-ingress-controller-${Env}
         spec:
           containers:
