@@ -3,3 +3,15 @@ ssh_keys = {
 }
 
 viaa_dc_subnet =
+vpn_connection = {
+  <location> = {
+    publicip = 
+    cidr = []
+    psk = 
+  }
+)
+ibm_vpc_address_prefix =
+ibm_kubernetes_net =
+ibm_openshift_net =
+ibm_vpn_net =
+ibm_vpe_net =
