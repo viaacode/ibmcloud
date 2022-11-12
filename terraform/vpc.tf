@@ -1,7 +1,3 @@
-variable "datacenter" {
-    default = "fra02"
-}
-
 variable "location" {
   default = "eu-de"
 }
@@ -12,7 +8,7 @@ variable "zone" {
 
 variable "viaa_dc_subnet" {
   type = string
-  description = "external IP address of outgoing traffic from the VIAA datacenter"
+  description = "external IP addresses of the meemoo datacenter"
 }
 
 variable "ssh_keys" {
@@ -28,20 +24,12 @@ variable "ibm_vpc_address_prefix" {
   type = string
 }
 
-variable "ibm_openshift_net" {
-  description = "subnet for the rhos openshift cluster"
-}
-
-variable "ibm_kubernetes_net" {
-  description = "subnet for the rhos openshift cluster"
-}
-
 variable "ibm_vpn_net" {
-  description = "subnet for the for the vpc vpn gateway"
+  description = "subnet for the vpc vpn gateway"
 }
 
 variable "ibm_vpe_net" {
-  description = "subnet for the for the vpc virtual private endpoints"
+  description = "subnet for the vpc virtual private endpoints"
 }
 
 resource "ibm_is_subnet" "vpe-net" {
@@ -185,26 +173,6 @@ resource "ibm_is_security_group_rule" "allow_dcg" {
   group      = ibm_is_vpc.dc-ibm.default_security_group
   direction  = "inbound"
   remote     = var.vpn_connection["dcg"]["cidr"][0]
-}
-
-resource "ibm_is_subnet" "openshift-net" {
-  name = "openshift-net"
-  vpc = ibm_is_vpc.dc-ibm.id
-  zone = var.zone
-  ipv4_cidr_block = var.ibm_openshift_net
-  resource_group = ibm_resource_group.shared.id
-  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
-  public_gateway = ibm_is_public_gateway.public-gateway.id
-}
-
-resource "ibm_is_subnet" "kubernetes-net" {
-  name = "kubernetes-net"
-  vpc = ibm_is_vpc.dc-ibm.id
-  zone = var.zone
-  ipv4_cidr_block = var.ibm_kubernetes_net
-  resource_group = ibm_resource_group.shared.id
-  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
-  public_gateway = ibm_is_public_gateway.public-gateway.id
 }
 
 resource "ibm_is_vpc_address_prefix" "dc-ibm-prefix" {
