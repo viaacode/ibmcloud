@@ -28,10 +28,16 @@ resource "ibm_container_vpc_cluster" "give" {
   wait_till = "MasterNodeReady"
   }
 
-resource ibm_container_vpc_alb_create alb {
-  cluster = ibm_container_vpc_cluster.give.id
-  type = "private"
-  zone = var.zone
-  resource_group_id = ibm_resource_group.shared.id
-  enable = "true"
+resource "ibm_container_vpc_alb" "private" {
+    alb_id = [ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "private" ][0]
+    enable = true
+}
+
+resource "ibm_container_vpc_alb" "public" {
+    alb_id = one([ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "public" ])
+    enable = false
+}
+
+output "private_loadbalancer" {
+  value = [ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "public" ][0]
 }

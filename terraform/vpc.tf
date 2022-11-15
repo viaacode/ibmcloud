@@ -130,22 +130,14 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 
 # This fails: created manualy or with te api
 # https://github.com/IBM-Cloud/terraform-provider-ibm/issues/2270
-resource "ibm_is_vpc_routing_table_route" "route-meemoo-dcg" {
+resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
+  for_each = var.vpn_connection
   routing_table = ibm_is_subnet.vpn-net.routing_table
-  name        = "route-meemoo-dcg"
+  name        = "route-meemoo-${each.key}"
   vpc         = ibm_is_vpc.dc-ibm.id
   zone        = var.zone
-  destination = var.vpn_connection["dcg"]["cidr"][0]
-  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["dcg"].id), 1)
-}
-
-resource "ibm_is_vpc_routing_table_route" "route-meemoo-dco" {
-  routing_table = ibm_is_subnet.vpn-net.routing_table
-  name        = "route-meemoo-dco"
-  vpc         = ibm_is_vpc.dc-ibm.id
-  zone        = var.zone
-  destination = var.vpn_connection["dco"]["cidr"][0]
-  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["dco"].id), 1)
+  destination = each.value["cidr"][0]
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections[each.key].id), 1)
 }
 
 resource "ibm_is_floating_ip" "public-gateway-ip" {
