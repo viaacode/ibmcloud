@@ -1,3 +1,8 @@
+variable "vpn_routes" {
+  description = "Configures which vpn connection is used, main or backup"
+  type = map
+}
+
 variable "location" {
   default = "eu-de"
 }
@@ -113,12 +118,10 @@ resource "ibm_is_ipsec_policy" "ipsec-meemoo-dc" {
 resource "ibm_is_vpn_gateway_connection" "vpn-connections" {
   for_each = var.vpn_connection 
   name          = "vpn-meemoo-${each.key}"
+  admin_state_up = contains(values(var.vpn_routes), each.key)
   vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway.id
   peer_address  = each.value["publicip"]
   preshared_key = each.value["psk"]
-  local_cidrs = [ ibm_is_vpc_address_prefix.dc-ibm-prefix.cidr, "166.8.0.0/14" ]
-  peer_cidrs = each.value["cidr"]
-  admin_state_up = true
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
 }
@@ -131,13 +134,13 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 # This fails: created manualy or with te api
 # https://github.com/IBM-Cloud/terraform-provider-ibm/issues/2270
 resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
-  for_each = var.vpn_connection
+  for_each = var.vpn_routes
   routing_table = ibm_is_subnet.vpn-net.routing_table
-  name        = "route-meemoo-${each.key}"
+  name        = "vpn-meemoo-${each.key}"
   vpc         = ibm_is_vpc.dc-ibm.id
   zone        = var.zone
-  destination = each.value["cidr"][0]
-  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections[each.key].id), 1)
+  destination = var.vpn_connection[each.value]["cidr"][0]
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections[each.value].id), 1)
 }
 
 resource "ibm_is_floating_ip" "public-gateway-ip" {

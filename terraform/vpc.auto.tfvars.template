@@ -1,17 +1,36 @@
 ssh_keys = {
-  <label> = "ssh-rsa ...""
+  name = "ssh-rsa ...."
 }
 
-viaa_dc_subnet =
+viaa_dc_subnet = <cidr>
+
 vpn_connection = {
-  <location> = {
-    publicip = 
-    cidr = []
-    psk = 
-  }
-)
-ibm_vpc_address_prefix =
-ibm_kubernetes_net =
-ibm_openshift_net =
-ibm_vpn_net =
-ibm_vpe_net =
+  dco = {
+    publicip = <public ip>
+    cidr = [ <cidr> ]
+    psk = "Gt7-Pk4%1%h2#Zb6Hp638$Mt3%Lf7-Ui9%5!-#_4"
+  },
+  dco-backup = {
+    publicip = <public ip>  # Juniper
+    cidr = [ <cidr> ]
+    psk = "secret psk"
+  },
+  dcg = {..
+}
+
+# This variables determines which vpn connection is active and used in the
+# routing table for each of the two meemoo datacenter cidrs. Possible values
+# for each datacenter refer to the vpn_connection variable.
+# for example, DC oostkamp:
+#  - main connection (connection with the Juniper SRX): "dco"
+#  - backup connection (connection with Strongswan): "dco-backup"
+vpn_routes = {
+  dco = "dco"
+  dcg = "dcg-backup"
+}
+
+ibm_vpc_address_prefix = <prefx>
+ibm_kubernetes_net = <prefx>
+ibm_openshift_net = <prefx>
+ibm_vpn_net = <prefx>
+ibm_vpe_net = <prefx>
