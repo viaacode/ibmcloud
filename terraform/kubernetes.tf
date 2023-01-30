@@ -15,9 +15,9 @@ resource "ibm_is_subnet" "kubernetes-net" {
 resource "ibm_container_vpc_cluster" "give" {
   name              = "give"
   vpc_id            = ibm_is_vpc.dc-ibm.id
-  kube_version      = "1.24.7"
+  kube_version      = "1.25.4"
   flavor            = "bx2.8x32"
-  worker_count      = "2"
+  worker_count      = "3"
   resource_group_id = ibm_resource_group.shared.id
   zones {
          subnet_id = ibm_is_subnet.kubernetes-net.id
@@ -39,5 +39,5 @@ resource "ibm_container_vpc_alb" "public" {
 }
 
 output "private_loadbalancer" {
-  value = [ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "public" ][0]
+  value = [ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "private" ]
 }
