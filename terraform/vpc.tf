@@ -11,6 +11,10 @@ variable "zone" {
   default = "eu-de-1"
 }
 
+variable "zones" {
+  type = set(string)
+}
+
 variable "viaa_dc_subnet" {
   type = string
   description = "external IP addresses of the meemoo datacenter"
@@ -26,22 +30,25 @@ variable "vpn_connection" {
 }
 
 variable "ibm_vpc_address_prefix" {
-  type = string
+  type = map
 }
 
 variable "ibm_vpn_net" {
   description = "subnet for the vpc vpn gateway"
+  type = map
 }
 
 variable "ibm_vpe_net" {
   description = "subnet for the vpc virtual private endpoints"
+  type = map
 }
 
 resource "ibm_is_subnet" "vpe-net" {
-  name = "vpe-net"
+  for_each = var.zones
+  name = "vpe-net-${each.key}"
   vpc = ibm_is_vpc.dc-ibm.id
-  zone = var.zone
-  ipv4_cidr_block = var.ibm_vpe_net
+  zone = each.value
+  ipv4_cidr_block = var.ibm_vpe_net[each.value]
   resource_group = ibm_resource_group.shared.id
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
 }
@@ -67,17 +74,18 @@ resource "ibm_is_vpc" "dc-ibm" {
 }
 
 resource "ibm_is_subnet" "vpn-net" {
-  name = "vpn-net"
+  for_each = toset([var.zone])
+  name = "vpn-net-${each.key}"
   vpc = ibm_is_vpc.dc-ibm.id
-  zone = var.zone
-  ipv4_cidr_block = var.ibm_vpn_net
+  zone = each.value
+  ipv4_cidr_block = var.ibm_vpn_net[each.value]
   resource_group = ibm_resource_group.shared.id
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
 }
 
 resource "ibm_is_vpn_gateway" "vpn-gateway" {
   name   = "vpn-gateway"
-  subnet = ibm_is_subnet.vpn-net.id
+  subnet = ibm_is_subnet.vpn-net[var.zone].id
   mode   = "route"
   resource_group = ibm_resource_group.shared.id
 }
@@ -96,6 +104,12 @@ locals {
  zone_cse_source_address = ibm_is_vpc.dc-ibm.cse_source_addresses[
    index(ibm_is_vpc.dc-ibm.cse_source_addresses[*].zone_name,var.zone)
  ]["address"]
+ meemoo_routes = flatten([ for zone in  var.zones  :
+      [ for meemoo_dc in values(var.vpn_routes) : {
+          zone = zone
+          meemoo_dc = meemoo_dc
+      }]
+  ])
 }
 
 resource "ibm_is_ike_policy" "ike-meemoo-dc" {
@@ -131,30 +145,33 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
     name = "dc-ibm-rt"
 }
 
+
 # This fails: created manualy or with te api
 # https://github.com/IBM-Cloud/terraform-provider-ibm/issues/2270
 resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
-  for_each = var.vpn_routes
-  routing_table = ibm_is_subnet.vpn-net.routing_table
+  for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry }
+  routing_table = ibm_is_subnet.vpn-net[var.zone].routing_table
   name        = "vpn-meemoo-${each.key}"
   vpc         = ibm_is_vpc.dc-ibm.id
-  zone        = var.zone
-  destination = var.vpn_connection[each.value]["cidr"][0]
-  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections[each.value].id), 1)
+  zone        = each.value.zone
+  destination = var.vpn_connection[each.value.meemoo_dc]["cidr"][0]
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections[each.value.meemoo_dc].id), 1)
 }
 
 resource "ibm_is_floating_ip" "public-gateway-ip" {
-  name = "public-gateway-ip"
-  zone = var.zone
+  for_each = var.zones
+  name = "public-gateway-ip-${each.key}"
+  zone = each.value
 }
 
 resource "ibm_is_public_gateway" "public-gateway" {
+    for_each = var.zones
     resource_group = ibm_resource_group.shared.id
-    name = "public-gateway"
+    name = "public-gateway-${each.key}"
     vpc = ibm_is_vpc.dc-ibm.id
-    zone = var.zone
+    zone = each.value
     floating_ip = {
-      id = ibm_is_floating_ip.public-gateway-ip.id
+      id = ibm_is_floating_ip.public-gateway-ip[each.value].id
     }
 }
 
@@ -171,8 +188,9 @@ resource "ibm_is_security_group_rule" "allow_dcg" {
 }
 
 resource "ibm_is_vpc_address_prefix" "dc-ibm-prefix" {
-  name = "dc-ibm-prefix"
-  zone = var.zone
+  for_each = var.zones
+  name = "dc-ibm-prefix-${each.key}"
+  zone = each.value
   vpc = ibm_is_vpc.dc-ibm.id
-  cidr = var.ibm_vpc_address_prefix
+  cidr = var.ibm_vpc_address_prefix[each.value]
 }

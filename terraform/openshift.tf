@@ -9,7 +9,7 @@ resource "ibm_is_subnet" "openshift-net" {
   ipv4_cidr_block = var.ibm_openshift_net
   resource_group = ibm_resource_group.shared.id
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
-  public_gateway = ibm_is_public_gateway.public-gateway.id
+  public_gateway = ibm_is_public_gateway.public-gateway[var.zone].id
 }
 
 resource "ibm_resource_instance" "regbackup" {

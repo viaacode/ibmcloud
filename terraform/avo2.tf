@@ -33,6 +33,14 @@ resource "ibm_database" "events-qas" {
     address = "${local.zone_cse_source_address}/32"
     description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
   }
+  whitelist {
+    address = var.tableau_ip_1
+    description = "IP 1 tableau"
+  }
+  whitelist {
+    address = var.tableau_ip_2
+    description = "IP 2 tableau"
+  }
 }
 
 variable "password_db_events_admin" {
@@ -66,6 +74,14 @@ resource "ibm_database" "events" {
   whitelist {
     address = "${local.zone_cse_source_address}/32"
     description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  }
+  whitelist {
+    address = var.tableau_ip_1
+    description = "IP 1 tableau"
+  }
+  whitelist {
+    address = var.tableau_ip_2
+    description = "IP 2 tableau"
   }
 }
 
