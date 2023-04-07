@@ -74,7 +74,7 @@ resource "ibm_is_vpc" "dc-ibm" {
 }
 
 resource "ibm_is_subnet" "vpn-net" {
-  for_each = toset([var.zone])
+  for_each = var.zones
   name = "vpn-net-${each.key}"
   vpc = ibm_is_vpc.dc-ibm.id
   zone = each.value
@@ -84,15 +84,16 @@ resource "ibm_is_subnet" "vpn-net" {
 }
 
 resource "ibm_is_vpn_gateway" "vpn-gateway" {
-  name   = "vpn-gateway"
-  subnet = ibm_is_subnet.vpn-net[var.zone].id
+  for_each = toset([var.zone])
+  name   = "vpn-gateway-${each.key}"
+  subnet = ibm_is_subnet.vpn-net[each.value].id
   mode   = "route"
   resource_group = ibm_resource_group.shared.id
 }
 
 output "vpn-public-ips" {
   description = "Public IP addresses of the VPN gateway for the dc-ibm VPC"
-  value = [ for k,v in ibm_is_vpn_gateway.vpn-gateway: v if substr(k,0,17) == "public_ip_address" ]
+  value = { for zone in toset([var.zone]): zone => [ for k,v in ibm_is_vpn_gateway.vpn-gateway[zone]: v if substr(k,0,17) == "public_ip_address" ] }
 }
 
 # The source address for traffic flowing from the VPC to private service
@@ -108,6 +109,13 @@ locals {
       [ for meemoo_dc in values(var.vpn_routes) : {
           zone = zone
           meemoo_dc = meemoo_dc
+      }]
+  ])
+ meemoo_vpncons = flatten([ for zone in toset([var.zone]):
+      [ for endpoint in keys(var.vpn_connection): {
+          zone = zone
+          endpoint = endpoint
+          parameters = var.vpn_connection[endpoint]
       }]
   ])
 }
@@ -130,12 +138,12 @@ resource "ibm_is_ipsec_policy" "ipsec-meemoo-dc" {
 }
 
 resource "ibm_is_vpn_gateway_connection" "vpn-connections" {
-  for_each = var.vpn_connection 
-  name          = "vpn-meemoo-${each.key}"
-  admin_state_up = contains(values(var.vpn_routes), each.key)
-  vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway.id
-  peer_address  = each.value["publicip"]
-  preshared_key = each.value["psk"]
+  for_each = { for entry in local.meemoo_vpncons: "${entry.endpoint}-${entry.zone}" => entry }
+  name          = "vpn-meemoo-${each.value.endpoint}"
+  admin_state_up = contains(values(var.vpn_routes), each.value.endpoint)
+  vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway[each.value.zone].id
+  peer_address  = each.value.parameters["publicip"]
+  preshared_key = each.value.parameters["psk"]
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
 }
@@ -146,8 +154,6 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 }
 
 
-# This fails: created manualy or with te api
-# https://github.com/IBM-Cloud/terraform-provider-ibm/issues/2270
 resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
   for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry }
   routing_table = ibm_is_subnet.vpn-net[var.zone].routing_table
@@ -155,7 +161,7 @@ resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
   vpc         = ibm_is_vpc.dc-ibm.id
   zone        = each.value.zone
   destination = var.vpn_connection[each.value.meemoo_dc]["cidr"][0]
-  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections[each.value.meemoo_dc].id), 1)
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["${each.value.meemoo_dc}-eu-de-1"].id), 1)
 }
 
 resource "ibm_is_floating_ip" "public-gateway-ip" {
