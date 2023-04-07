@@ -84,7 +84,7 @@ resource "ibm_is_subnet" "vpn-net" {
 }
 
 resource "ibm_is_vpn_gateway" "vpn-gateway" {
-  for_each = toset([var.zone])
+  for_each = var.zones
   name   = "vpn-gateway-${each.key}"
   subnet = ibm_is_subnet.vpn-net[each.value].id
   mode   = "route"
@@ -93,7 +93,7 @@ resource "ibm_is_vpn_gateway" "vpn-gateway" {
 
 output "vpn-public-ips" {
   description = "Public IP addresses of the VPN gateway for the dc-ibm VPC"
-  value = { for zone in toset([var.zone]): zone => [ for k,v in ibm_is_vpn_gateway.vpn-gateway[zone]: v if substr(k,0,17) == "public_ip_address" ] }
+  value = { for zone in var.zones: zone => [ for k,v in ibm_is_vpn_gateway.vpn-gateway[zone]: v if substr(k,0,17) == "public_ip_address" ] }
 }
 
 # The source address for traffic flowing from the VPC to private service
@@ -109,9 +109,10 @@ locals {
       [ for meemoo_dc in values(var.vpn_routes) : {
           zone = zone
           meemoo_dc = meemoo_dc
+          vpn_conn_zone = meemoo_dc == "dco" ? var.zone : zone 
       }]
   ])
- meemoo_vpncons = flatten([ for zone in toset([var.zone]):
+ meemoo_vpncons = flatten([ for zone in var.zones:
       [ for endpoint in keys(var.vpn_connection): {
           zone = zone
           endpoint = endpoint
@@ -139,7 +140,7 @@ resource "ibm_is_ipsec_policy" "ipsec-meemoo-dc" {
 
 resource "ibm_is_vpn_gateway_connection" "vpn-connections" {
   for_each = { for entry in local.meemoo_vpncons: "${entry.endpoint}-${entry.zone}" => entry }
-  name          = "vpn-meemoo-${each.value.endpoint}"
+  name          = "vpn-meemoo-${each.key}"
   admin_state_up = contains(values(var.vpn_routes), each.value.endpoint)
   vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway[each.value.zone].id
   peer_address  = each.value.parameters["publicip"]
@@ -161,7 +162,7 @@ resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
   vpc         = ibm_is_vpc.dc-ibm.id
   zone        = each.value.zone
   destination = var.vpn_connection[each.value.meemoo_dc]["cidr"][0]
-  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["${each.value.meemoo_dc}-eu-de-1"].id), 1)
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["${each.value.meemoo_dc}-${each.value.vpn_conn_zone}"].id), 1)
 }
 
 resource "ibm_is_floating_ip" "public-gateway-ip" {
@@ -171,14 +172,14 @@ resource "ibm_is_floating_ip" "public-gateway-ip" {
 }
 
 resource "ibm_is_public_gateway" "public-gateway" {
-    for_each = var.zones
-    resource_group = ibm_resource_group.shared.id
-    name = "public-gateway-${each.key}"
-    vpc = ibm_is_vpc.dc-ibm.id
-    zone = each.value
-    floating_ip = {
-      id = ibm_is_floating_ip.public-gateway-ip[each.value].id
-    }
+  for_each = var.zones
+  resource_group = ibm_resource_group.shared.id
+  name = "public-gateway-${each.key}"
+  vpc = ibm_is_vpc.dc-ibm.id
+  zone = each.value
+  floating_ip = {
+    id = ibm_is_floating_ip.public-gateway-ip[each.value].id
+  }
 }
 
 resource "ibm_is_security_group_rule" "allow_dco" {
