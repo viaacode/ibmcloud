@@ -93,7 +93,13 @@ resource "ibm_is_vpn_gateway" "vpn-gateway" {
 
 output "vpn-public-ips" {
   description = "Public IP addresses of the VPN gateway for the dc-ibm VPC"
-  value = { for zone in var.zones: zone => [ for k,v in ibm_is_vpn_gateway.vpn-gateway[zone]: v if substr(k,0,17) == "public_ip_address" ] }
+  value = {
+    for zone in var.zones: zone => [
+      for i,ip in sort([
+        for k,v in ibm_is_vpn_gateway.vpn-gateway[zone]: join(".",tolist(formatlist("%3d",split(".",v)))) if substr(k,0,17) == "public_ip_address"
+      ]): format("%s public IP: %s", i == 0 ? "primary": "secondary", replace(ip, " ",""))
+    ]
+  }
 }
 
 # The source address for traffic flowing from the VPC to private service
@@ -158,7 +164,7 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
   for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry }
   routing_table = ibm_is_subnet.vpn-net[var.zone].routing_table
-  name        = "vpn-meemoo-${each.key}"
+  name        = "meemoo-${each.key}"
   vpc         = ibm_is_vpc.dc-ibm.id
   zone        = each.value.zone
   destination = var.vpn_connection[each.value.meemoo_dc]["cidr"][0]
