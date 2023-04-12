@@ -72,11 +72,24 @@ resource "ibm_database" "hetarchief-prd" {
   }
 }
 
+data "ibm_database_connection" "hetarchief-prd" {
+  endpoint_type = "private"
+  deployment_id = ibm_database.hetarchief-prd.id
+  user_id = "admin"
+  user_type = "database"
+}
+data "ibm_database_connection" "hetarchief-qas" {
+  endpoint_type = "private"
+  deployment_id = ibm_database.hetarchief-prd.id
+  user_id = "admin"
+  user_type = "database"
+}
+
 output "pg-connection-hetarchief-prd" {
   description = "Connection strings for the postgres databases"
-  value = [ for r in  ibm_database.hetarchief-prd.connectionstrings: r.composed if r.name == "admin" ]
+  value = one(one(data.ibm_database_connection.hetarchief-prd.postgres).composed)
 }
 output "pg-connection-hetarchief-qas" {
   description = "Connection strings for the postgres databases"
-  value = [ for r in  ibm_database.hetarchief-qas.connectionstrings: r.composed if r.name == "admin" ]
+  value = one(one(data.ibm_database_connection.hetarchief-qas.postgres).composed)
 }
