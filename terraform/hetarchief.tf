@@ -22,9 +22,18 @@ resource "ibm_database" "hetarchief-qas" {
   location                     = var.location
   version                      = "12"
   adminpassword                = var.password_db_hetarchief-qas_admin
-  members_memory_allocation_mb = 2048
-  members_disk_allocation_mb   = 10240
-  members_cpu_allocation_count = 0
+  group {
+    group_id = "member"
+    memory {
+      allocation_mb = 2048
+    }
+    disk {
+      allocation_mb = 10240
+    }
+    cpu {
+      allocation_count = 0
+    }
+  }
   service_endpoints            = "public-and-private"
   users {
     name = "dbmaster"
@@ -51,9 +60,18 @@ resource "ibm_database" "hetarchief-prd" {
   location                     = var.location
   version                      = "12"
   adminpassword                = var.password_db_hetarchief-prd_admin
-  members_memory_allocation_mb = 12288
-  members_disk_allocation_mb   = 61440
-  members_cpu_allocation_count = 0
+  group {
+    group_id = "member"
+    memory {
+      allocation_mb = 6144
+    }
+    disk {
+      allocation_mb = 30720
+    }
+    cpu {
+      allocation_count = 0
+    }
+  }
   service_endpoints            = "public-and-private"
   users {
     name = "dbmaster"

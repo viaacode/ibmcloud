@@ -12,9 +12,18 @@ resource "ibm_database" "give-mongo-prd" {
   location                     =  var.location
   version                      = "4.4"
   adminpassword                = var.password_db_mongo-prd_admin
-  members_memory_allocation_mb = 3456
-  members_disk_allocation_mb   = 30720
-  members_cpu_allocation_count = 0
+  group {
+    group_id = "member"
+    memory {
+      allocation_mb = 1152
+    }
+    disk {
+      allocation_mb = 10240
+    }
+    cpu {
+      allocation_count = 0
+    }
+  }
   service_endpoints            = "private"
 }
 
@@ -26,9 +35,18 @@ resource "ibm_database" "give-mongo-qas" {
   location                     =  var.location
   version                      = "4.4"
   adminpassword                = var.password_db_mongo-qas_admin
-  members_memory_allocation_mb = 3456
-  members_disk_allocation_mb   = 30720
-  members_cpu_allocation_count = 0
+  group {
+    group_id = "member"
+    memory {
+      allocation_mb = 1152
+    }
+    disk {
+      allocation_mb = 10240
+    }
+    cpu {
+      allocation_count = 0
+    }
+  }
   service_endpoints            = "private"
 }
 
@@ -40,8 +58,17 @@ resource "ibm_database" "give-mongo-int" {
   location                     =  var.location
   version                      = "4.4"
   adminpassword                = var.password_db_avo2-qas_admin
-  members_memory_allocation_mb = 3456
-  members_disk_allocation_mb   = 30720
-  members_cpu_allocation_count = 0
+  group {
+    group_id = "member"
+    memory {
+      allocation_mb = 1152
+    }
+    disk {
+      allocation_mb = 10240
+    }
+    cpu {
+      allocation_count = 0
+    }
+  }
   service_endpoints            = "private"
 }
