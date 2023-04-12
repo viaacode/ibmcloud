@@ -91,6 +91,10 @@ resource "ibm_is_vpn_gateway" "vpn-gateway" {
   resource_group = ibm_resource_group.shared.id
 }
 
+# By IBM design, the numerically lowest VPN public IP is the primary address
+# and the other one the secondary. Below we sort the IP address, but pad the
+# compposing numbers first to 3 digits in order to have the string sort behave
+# as a numerical sort. The padding is removed again before printing.
 output "vpn-public-ips" {
   description = "Public IP addresses of the VPN gateway for the dc-ibm VPC"
   value = {
@@ -111,11 +115,13 @@ locals {
  zone_cse_source_address = ibm_is_vpc.dc-ibm.cse_source_addresses[
    index(ibm_is_vpc.dc-ibm.cse_source_addresses[*].zone_name,var.zone)
  ]["address"]
+ zones = tolist(var.zones)
  meemoo_routes = flatten([ for zone in  var.zones  :
       [ for meemoo_dc in values(var.vpn_routes) : {
           zone = zone
           meemoo_dc = meemoo_dc
-          vpn_conn_zone = meemoo_dc == "dco" ? var.zone : zone 
+          vpn_conn_zone = zone
+          vpn_backup_con_zone =  local.zones[ index(local.zones, zone) == 0 ? length(local.zones) - 1 : index(local.zones, zone) -1 ]
       }]
   ])
  meemoo_vpncons = flatten([ for zone in var.zones:
@@ -163,7 +169,7 @@ resource "ibm_is_vpc_routing_table" "dc-ibm-rt" {
 
 resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
   for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry }
-  routing_table = ibm_is_subnet.vpn-net[var.zone].routing_table
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
   name        = "meemoo-${each.key}"
   vpc         = ibm_is_vpc.dc-ibm.id
   zone        = each.value.zone
