@@ -30,13 +30,16 @@ resource "ibm_database" "hetarchief-qas" {
     name = "dbmaster"
     password = var.password_db_hetarchief-qas_dbmaster
   }
-  whitelist {
+  allowlist {
     address = var.dwh_sources_ip
     description = "deewee etl process"
   }
-  whitelist {
-    address = "${local.zone_cse_source_address}/32"
-    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  dynamic "allowlist" {
+    for_each = ibm_is_vpc.dc-ibm.cse_source_addresses
+    content {
+      address = "${allowlist.value.address}/32"
+      description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${allowlist.value.zone_name}"
+    }
   }
 }
 
@@ -56,13 +59,16 @@ resource "ibm_database" "hetarchief-prd" {
     name = "dbmaster"
     password = var.password_db_hetarchief-prd_dbmaster
   }
-  whitelist {
+  allowlist {
     address = var.dwh_sources_ip
     description = "deewee etl process"
   }
-  whitelist {
-    address = "${local.zone_cse_source_address}/32"
-    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  dynamic "allowlist" {
+    for_each = ibm_is_vpc.dc-ibm.cse_source_addresses
+    content {
+      address = "${allowlist.value.address}/32"
+      description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${allowlist.value.zone_name}"
+    }
   }
 }
 

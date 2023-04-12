@@ -112,9 +112,6 @@ output "vpn-public-ips" {
 # The cse_soure_address attribute exposes the SNAT address for all zones. Below
 # the source address for our zone is selected from the list.
 locals {
- zone_cse_source_address = ibm_is_vpc.dc-ibm.cse_source_addresses[
-   index(ibm_is_vpc.dc-ibm.cse_source_addresses[*].zone_name,var.zone)
- ]["address"]
  zones = tolist(var.zones)
  meemoo_routes = flatten([ for zone in  var.zones  :
       [ for meemoo_dc in values(var.vpn_routes) : {

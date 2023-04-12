@@ -16,14 +16,6 @@ resource "ibm_database" "give-mongo-prd" {
   members_disk_allocation_mb   = 30720
   members_cpu_allocation_count = 0
   service_endpoints            = "private"
- # whitelist {
- #   address = var.dwh_sources_ip
- #   description = "deewee etl process"
- # }
- # whitelist {
- #   address = "${local.zone_cse_source_address}/32"
- #   description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
- # }
 }
 
 resource "ibm_database" "give-mongo-qas" {
@@ -38,15 +30,8 @@ resource "ibm_database" "give-mongo-qas" {
   members_disk_allocation_mb   = 30720
   members_cpu_allocation_count = 0
   service_endpoints            = "private"
- # whitelist {
- #   address = var.dwh_sources_ip
- #   description = "deewee etl process"
- # }
- # whitelist {
- #   address = "${local.zone_cse_source_address}/32"
- #   description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
- # }
 }
+
 resource "ibm_database" "give-mongo-int" {
   resource_group_id            = ibm_resource_group.qas.id
   name                         = "mg-give-services-int"

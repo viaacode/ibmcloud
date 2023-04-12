@@ -25,19 +25,22 @@ resource "ibm_database" "events-qas" {
     name = "dwhreader"
     password = var.password_db_dwhreader
   }
-  whitelist {
+  dynamic "allowlist" {
+    for_each = ibm_is_vpc.dc-ibm.cse_source_addresses
+    content {
+      address = "${allowlist.value.address}/32"
+      description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${allowlist.value.zone_name}"
+    }
+  }
+  allowlist {
     address = var.dwh_sources_ip
     description = "deewee ETL process"
   }
-  whitelist {
-    address = "${local.zone_cse_source_address}/32"
-    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
-  }
-  whitelist {
+  allowlist {
     address = var.tableau_ip_1
     description = "IP 1 tableau"
   }
-  whitelist {
+  allowlist {
     address = var.tableau_ip_2
     description = "IP 2 tableau"
   }
@@ -67,19 +70,22 @@ resource "ibm_database" "events" {
     name = "dbmaster"
     password = var.password_db_events_dbmaster
   }
-  whitelist {
+  allowlist {
     address = var.dwh_sources_ip
     description = "deewee ETL process"
   }
-  whitelist {
-    address = "${local.zone_cse_source_address}/32"
-    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  dynamic "allowlist" {
+    for_each = ibm_is_vpc.dc-ibm.cse_source_addresses
+    content {
+      address = "${allowlist.value.address}/32"
+      description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${allowlist.value.zone_name}"
+    }
   }
-  whitelist {
+  allowlist {
     address = var.tableau_ip_1
     description = "IP 1 tableau"
   }
-  whitelist {
+  allowlist {
     address = var.tableau_ip_2
     description = "IP 2 tableau"
   }
@@ -110,13 +116,16 @@ resource "ibm_database" "avo2-qas" {
     password = var.password_db_avo2-qas_dbmaster
     type = "database"
   }
-  whitelist {
+  allowlist {
     address = var.dwh_sources_ip
     description = "deewee etl process"
   }
-  whitelist {
-    address = "${local.zone_cse_source_address}/32"
-    description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+  dynamic "allowlist" {
+    for_each = ibm_is_vpc.dc-ibm.cse_source_addresses
+    content {
+      address = "${allowlist.value.address}/32"
+      description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${allowlist.value.zone_name}"
+    }
   }
 }
 
@@ -159,12 +168,15 @@ resource "ibm_database" "avo2" {
      name = "dbmaster"
      password = var.password_db_avo2_dbmaster
    }
-   whitelist {
+   allowlist {
      address = var.dwh_sources_ip
      description = "deewee etl process"
    }
-   whitelist {
-     address = "${local.zone_cse_source_address}/32"
-     description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${var.zone}"
+   dynamic "allowlist" {
+     for_each = ibm_is_vpc.dc-ibm.cse_source_addresses
+     content {
+       address = "${allowlist.value.address}/32"
+       description = "VPC ${ibm_is_vpc.dc-ibm.name}, zone: ${allowlist.value.zone_name}"
+     }
    }
 }
