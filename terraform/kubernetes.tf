@@ -2,6 +2,10 @@ variable "ibm_kubernetes_net" {
   description = "subnet for the rhos openshift cluster"
   type = map
 }
+variable "kubernetes_zones" {
+  description = "zones in which to create worker nodes"
+  type = set(string)
+}
 
 resource "ibm_is_subnet" "kubernetes-net" {
   for_each = var.zones
@@ -17,30 +21,15 @@ resource "ibm_is_subnet" "kubernetes-net" {
 resource "ibm_container_vpc_cluster" "give" {
   name              = "give"
   vpc_id            = ibm_is_vpc.dc-ibm.id
-  kube_version      = "1.25.4"
+  kube_version      = "1.25.9"
   flavor            = "bx2.8x32"
-  worker_count      = "1"
+  worker_count      = "2"
   resource_group_id = ibm_resource_group.shared.id
   disable_public_service_endpoint = true
   wait_for_worker_update = true
   wait_till = "MasterNodeReady"
   dynamic "zones" {
-    for_each = var.zones
-    content {
-      subnet_id = ibm_is_subnet.kubernetes-net[zones.value].id
-      name = zones.key
-      }
-    }
-  }
-
-resource "ibm_container_vpc_worker_pool" "workers" {
-  cluster = ibm_container_vpc_cluster.give.id
-  worker_pool_name = "workers"
-  vpc_id            = ibm_is_vpc.dc-ibm.id
-  flavor            = "bx2.8x32"
-  worker_count = 1
-  dynamic "zones" {
-    for_each = var.zones
+    for_each = var.kubernetes_zones
     content {
       subnet_id = ibm_is_subnet.kubernetes-net[zones.value].id
       name = zones.key
@@ -57,7 +46,6 @@ resource "ibm_container_vpc_alb" "private" {
 
 resource "ibm_container_vpc_alb" "public" {
     for_each = toset([ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "public" ])
-    #alb_id = one([ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "public" ])
     alb_id = each.value
     enable = false
 }
