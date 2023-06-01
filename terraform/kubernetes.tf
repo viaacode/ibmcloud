@@ -38,8 +38,15 @@ resource "ibm_container_vpc_cluster" "give" {
 }
 
 # Our cluster has two ALB's in zone 1 probably due to historical reasons. Here we leave the first one disabled with a dirty hack
+# It also has an ALB in zone eu-de-3, zone which is currently not used. This
+# one shoud also remain disabled. If it is needed it should be imported in the
+# state.
 resource "ibm_container_vpc_alb" "private" {
-    for_each = toset([for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"]=="private" && lb["id"] != "private-cr${ibm_container_vpc_cluster.give.id}-alb1"])
+    for_each = toset([for lb in ibm_container_vpc_cluster.give.albs :
+      lb["id"] if lb["alb_type"]=="private" &&
+      lb["id"] != "private-cr${ibm_container_vpc_cluster.give.id}-alb1" &&
+      lb["id"] != "private-cr${ibm_container_vpc_cluster.give.id}-alb4"
+    ])
     alb_id = each.value
     enable = true
 }
