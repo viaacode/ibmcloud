@@ -21,7 +21,7 @@ resource "ibm_is_subnet" "kubernetes-net" {
 resource "ibm_container_vpc_cluster" "give" {
   name              = "give"
   vpc_id            = ibm_is_vpc.dc-ibm.id
-  kube_version      = "1.25.9"
+  kube_version      = "1.26.5"
   flavor            = "bx2.8x32"
   worker_count      = "2"
   resource_group_id = ibm_resource_group.shared.id
@@ -53,3 +53,33 @@ resource "ibm_container_vpc_alb" "public" {
 output "private_loadbalancer" {
   value = [ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "private" ]
 }
+
+resource "ibm_container_addons" "addons" {
+  cluster = "give"
+  addons {
+    name = "cluster-autoscaler"
+    version = "1.0.8"
+  }
+  addons {
+    name = "debug-tool"
+    version = "2.0.0"
+  }
+  addons {
+    name = "vpc-block-csi-driver"
+    version = "5.0"
+  }
+}
+
+resource "ibm_container_vpc_worker_pool" "give-mx2_8x64" {
+  cluster 		= "give"
+  worker_pool_name 	= "mx2_8x64"
+  flavor 		= "mx2.8x64"
+  vpc_id 		= ibm_is_vpc.dc-ibm.id
+  worker_count 		= "2"
+
+  zones {
+    name 	= "eu-de-2"
+    subnet_id 	= "02c7-d8e2533c-20a3-4309-9e05-4c6e93a0a404"
+  }
+}
+
