@@ -174,6 +174,17 @@ resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
   next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["${each.value.meemoo_dc}-${each.value.vpn_conn_zone}"].id), 1)
 }
 
+resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc-otherzone" {
+  for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry if entry.meemoo_dc == "dcg" }
+  routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
+  name        = "meemoo-backup-${each.key}"
+  vpc         = ibm_is_vpc.dc-ibm.id
+  zone        = each.value.zone
+  destination = var.vpn_connection[each.value.meemoo_dc]["cidr"][0]
+  priority    =	4
+  next_hop    = element(split("/", ibm_is_vpn_gateway_connection.vpn-connections["${each.value.meemoo_dc}-${each.value.vpn_backup_con_zone}"].id), 1)
+}
+
 resource "ibm_is_floating_ip" "public-gateway-ip" {
   for_each = var.zones
   name = "public-gateway-ip-${each.key}"

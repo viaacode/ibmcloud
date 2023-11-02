@@ -61,21 +61,23 @@ output "private_loadbalancer" {
   value = [ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "private" ]
 }
 
-resource "ibm_container_addons" "addons" {
-  cluster = "give"
-  addons {
-    name = "cluster-autoscaler"
-    version = "1.0.8"
-  }
-  addons {
-    name = "debug-tool"
-    version = "2.0.0"
-  }
-  addons {
-    name = "vpc-block-csi-driver"
-    version = "5.0"
-  }
-}
+# Disabled and removed from state
+#resource "ibm_container_addons" "addons" {
+#  cluster = "give"
+#  addons {
+#    name = "cluster-autoscaler"
+#    version = "1.0.8"
+#  }
+#  addons {
+#    name = "debug-tool"
+#    version = "2.0.0"
+#  }
+#  addons {
+#    name = "vpc-block-csi-driver"
+#    version = "5.0"
+#  }
+#}
+#
 
 resource "ibm_container_vpc_worker_pool" "give-mx2_8x64" {
   cluster 		= "give"
@@ -87,6 +89,11 @@ resource "ibm_container_vpc_worker_pool" "give-mx2_8x64" {
   zones {
     name 	= "eu-de-2"
     subnet_id 	= "02c7-d8e2533c-20a3-4309-9e05-4c6e93a0a404"
+  }
+  taints {
+    effect = "NoSchedule"
+    key    = "dedicated"
+    value  = "give-face-worker"
   }
 }
 
