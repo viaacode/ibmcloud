@@ -23,9 +23,9 @@ resource "ibm_resource_instance" "regbackup" {
 resource "ibm_container_vpc_cluster" "meemoo2" {
   name              = "meemoo2"
   vpc_id            = ibm_is_vpc.dc-ibm.id
-  kube_version         = "4.10.53_openshift"
+  kube_version         = "4.13.15_openshift"
     flavor            = "bx2.8x32"
-  worker_count      = "7"
+  worker_count      = "6"
   cos_instance_crn  = ibm_resource_instance.regbackup.id
   resource_group_id = ibm_resource_group.shared.id
   zones {
@@ -42,7 +42,7 @@ resource "ibm_container_vpc_cluster" "meemoo2" {
     worker_pool_name = "infra-workers"
     vpc_id            = ibm_is_vpc.dc-ibm.id
     flavor            = "bx2.4x16"
-    worker_count = 2
+    worker_count = 3
     operating_system = "REDHAT_8_64"
     dynamic "zones" {
       for_each = toset(["eu-de-2"])

@@ -22,10 +22,10 @@ resource "ibm_database" "pg-give-services-int" {
   group {
     group_id = "member"
     memory {
-      allocation_mb = 1024
+      allocation_mb = 4096
     }
     disk {
-      allocation_mb = 5120
+      allocation_mb = 10240
     }
     cpu {
       allocation_count = 0
@@ -47,16 +47,15 @@ resource "ibm_database" "pg-give-services-qas" {
   group {
     group_id = "member"
     memory {
-      allocation_mb = 1024
+      allocation_mb = 4096
     }
     disk {
-      allocation_mb = 5120
+      allocation_mb = 17408
     }
     cpu {
       allocation_count = 0
     }
   }
-
   service_endpoints            = "private"
 }
 
@@ -72,10 +71,10 @@ resource "ibm_database" "pg-give-services-prd" {
   group {
     group_id = "member"
     memory {
-      allocation_mb = 2048
+      allocation_mb = 4096
     }
     disk {
-      allocation_mb = 10240
+      allocation_mb = 119808
     }
     cpu {
       allocation_count = 0

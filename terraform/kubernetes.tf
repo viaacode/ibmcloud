@@ -21,7 +21,7 @@ resource "ibm_is_subnet" "kubernetes-net" {
 resource "ibm_container_vpc_cluster" "give" {
   name              = "give"
   vpc_id            = ibm_is_vpc.dc-ibm.id
-  kube_version      = "1.26.5"
+  kube_version      = "1.28.15"
   flavor            = "bx2.8x32"
   worker_count      = "2"
   resource_group_id = ibm_resource_group.shared.id
@@ -54,7 +54,7 @@ resource "ibm_container_vpc_alb" "private" {
 resource "ibm_container_vpc_alb" "public" {
     for_each = toset([ for lb in ibm_container_vpc_cluster.give.albs : lb["id"] if lb["alb_type"] == "public" ])
     alb_id = each.value
-    enable = false
+    enable = each.value != "public-cr${ibm_container_vpc_cluster.give.id}-alb3" ? true : false
 }
 
 output "private_loadbalancer" {
@@ -79,12 +79,12 @@ output "private_loadbalancer" {
 #}
 #
 
-resource "ibm_container_vpc_worker_pool" "give-mx2_8x64" {
+resource "ibm_container_vpc_worker_pool" "face-workers" {
   cluster 		= "give"
-  worker_pool_name 	= "mx2_8x64"
-  flavor 		= "mx2.8x64"
+  worker_pool_name 	= "face-workers"
+  flavor 		= "mx2.16x128"
   vpc_id 		= ibm_is_vpc.dc-ibm.id
-  worker_count 		= "2"
+  worker_count 		= "1"
 
   zones {
     name 	= "eu-de-2"

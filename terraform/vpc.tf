@@ -69,7 +69,6 @@ resource "ibm_compute_ssh_key" "keys" {
 resource "ibm_is_vpc" "dc-ibm" {
   resource_group = ibm_resource_group.shared.id
   name = "dc-ibm"
-  classic_access = false
   address_prefix_management = "manual"
 }
 
@@ -152,7 +151,9 @@ resource "ibm_is_vpn_gateway_connection" "vpn-connections" {
   name          = "vpn-meemoo-${each.key}"
   admin_state_up = contains(values(var.vpn_routes), each.value.endpoint)
   vpn_gateway   = ibm_is_vpn_gateway.vpn-gateway[each.value.zone].id
-  peer_address  = each.value.parameters["publicip"]
+  peer {
+    address =  each.value.parameters["publicip"]
+  }
   preshared_key = each.value.parameters["psk"]
   ike_policy = ibm_is_ike_policy.ike-meemoo-dc.id
   ipsec_policy = ibm_is_ipsec_policy.ipsec-meemoo-dc.id
@@ -175,7 +176,7 @@ resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc" {
 }
 
 resource "ibm_is_vpc_routing_table_route" "route-meemoo-dc-otherzone" {
-  for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry if entry.meemoo_dc == "dcg" }
+  for_each =  { for entry in local.meemoo_routes: "${entry.meemoo_dc}-${entry.zone}" => entry }
   routing_table = ibm_is_vpc_routing_table.dc-ibm-rt.routing_table
   name        = "meemoo-backup-${each.key}"
   vpc         = ibm_is_vpc.dc-ibm.id
